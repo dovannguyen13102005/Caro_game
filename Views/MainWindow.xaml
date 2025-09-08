@@ -15,6 +15,7 @@
     <Window.Resources>
         <conv:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
         <SolidColorBrush x:Key="Primary" Color="#2D7EF7"/>
+        <SolidColorBrush x:Key="DefaultForeground" Color="White"/>
     </Window.Resources>
 
     <Window.DataContext>
@@ -37,39 +38,39 @@
                             <!-- Cột trái: tùy chọn -->
                             <Border Grid.Column="0" Background="#1E293B" CornerRadius="12" Padding="16">
                                 <StackPanel>
-                                    <TextBlock Text="Tùy chọn nhanh" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="Tùy chọn nhanh" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
                                     <Separator Margin="0,8"/>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <TextBlock Text="Hàng:" Width="120" Foreground="White"/>
+                                        <TextBlock Text="Hàng:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120" ItemsSource="{Binding RowOptions}" SelectedItem="{Binding SelectedRows}"/>
                                     </StackPanel>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <TextBlock Text="Cột:" Width="120" Foreground="White"/>
+                                        <TextBlock Text="Cột:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120" ItemsSource="{Binding ColumnOptions}" SelectedItem="{Binding SelectedColumns}"/>
                                     </StackPanel>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                        <TextBlock Text="Người đi trước:" Width="120" Foreground="White"/>
+                                        <TextBlock Text="Người đi trước:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120" ItemsSource="{Binding Players}" SelectedItem="{Binding FirstPlayer}"/>
                                     </StackPanel>
 
                                     <CheckBox Content="Chơi với máy" Margin="0,10,0,0"
-                                              IsChecked="{Binding IsAIEnabled}" Foreground="White"/>
+                                              IsChecked="{Binding IsAIEnabled}" Foreground="{DynamicResource DefaultForeground}"/>
 
                                     <!-- Thêm chọn chế độ AI -->
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                        <TextBlock Text="Chế độ AI:" Width="120" Foreground="White"/>
+                                        <TextBlock Text="Chế độ AI:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120"
                                                   ItemsSource="{Binding AIModes}"
                                                   SelectedItem="{Binding SelectedAIMode}"/>
                                     </StackPanel>
 
-                                    <CheckBox Content="Bật âm thanh" Margin="0,10,0,0" IsChecked="True" Foreground="White"/>
+                                    <CheckBox Content="Bật âm thanh" Margin="0,10,0,0" IsChecked="True" Foreground="{DynamicResource DefaultForeground}"/>
 
                                     <Button Content="Bắt đầu ván mới" Margin="0,16,0,0"
-                                            Background="{StaticResource Primary}" Foreground="White"
+                                            Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
                                             Command="{Binding StartGameCommand}"/>
                                 </StackPanel>
                             </Border>
@@ -98,7 +99,7 @@
                                                             FontWeight="Bold"
                                                             FontSize="16"
                                                             Background="{Binding IsWinningCell, Converter={StaticResource BoolToBrushConverter}}"
-                                                            Foreground="White"
+                                                            Foreground="{DynamicResource DefaultForeground}"
                                                             BorderBrush="#1F2937"
                                                             BorderThickness="1"/>
                                                 </DataTemplate>
@@ -116,17 +117,17 @@
                     <Border Background="#0B1220" Margin="-4" Padding="16">
                         <ScrollViewer>
                             <StackPanel>
-                                <TextBlock Text="Luật chơi cơ bản" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="Luật chơi cơ bản" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
                                 <Separator Margin="0,8"/>
-                                <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc, hoặc chéo." Foreground="White"/>
-                                <TextBlock Text="• Bàn cờ: lưới N×M, có thể tùy chỉnh số hàng/cột." Margin="0,6,0,0" Foreground="White"/>
-                                <TextBlock Text="• Lượt đi: X và O thay phiên nhau." Margin="0,6,0,0" Foreground="White"/>
-                                <TextBlock Text="• Thắng: khi một bên có 5 quân liên tiếp." Margin="0,6,0,0" Foreground="White"/>
+                                <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc, hoặc chéo." Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Bàn cờ: lưới N×M, có thể tùy chỉnh số hàng/cột." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Lượt đi: X và O thay phiên nhau." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Thắng: khi một bên có 5 quân liên tiếp." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
                                 <Separator Margin="0,8"/>
                                 <TextBlock Text="Mẹo nhanh" FontSize="16" FontWeight="Bold" Foreground="#C7D2FE" Margin="0,6,0,0"/>
-                                <TextBlock Text="• Ưu tiên trung tâm, mở rộng theo hai hướng." Foreground="White"/>
-                                <TextBlock Text="• Chặn nước 4 của đối thủ ngay." Foreground="White"/>
-                                <TextBlock Text="• Tạo thế 2 hướng mở để ép thắng." Foreground="White"/>
+                                <TextBlock Text="• Ưu tiên trung tâm, mở rộng theo hai hướng." Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Chặn nước 4 của đối thủ ngay." Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Tạo thế 2 hướng mở để ép thắng." Foreground="{DynamicResource DefaultForeground}"/>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
@@ -136,29 +137,25 @@
                 <TabItem Header="⚙️  Cài đặt">
                     <Border Background="#0B1220" Margin="-4" Padding="16">
                         <StackPanel>
-                            <TextBlock Text="Tùy chỉnh giao diện" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Tùy chỉnh giao diện" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
                             <Separator Margin="0,8"/>
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <TextBlock Text="Theme:" Width="160" Foreground="White"/>
-                                <ComboBox Width="160">
-                                    <ComboBoxItem Content="Dark (mặc định)"/>
-                                    <ComboBoxItem Content="Light"/>
-                                </ComboBox>
+                                <TextBlock Text="Theme:" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
+                                <ComboBox Width="160" ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}"/>
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <TextBlock Text="Màu nhấn (Primary):" Width="160" Foreground="White"/>
-                                <ComboBox Width="160">
-                                    <ComboBoxItem Content="Xanh dương"/>
-                                    <ComboBoxItem Content="Tím"/>
-                                    <ComboBoxItem Content="Lục"/>
-                                </ComboBox>
+                                <TextBlock Text="Màu nhấn (Primary):" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
+                                <ComboBox Width="160" ItemsSource="{Binding PrimaryColors}" SelectedItem="{Binding SelectedPrimaryColor}"/>
                             </StackPanel>
 
-                            <CheckBox Content="Âm thanh" Margin="0,6,0,0" IsChecked="True" Foreground="White"/>
+                            <CheckBox Content="Âm thanh" Margin="0,6,0,0"
+                                      IsChecked="{Binding IsSoundEnabled}"
+                                      Foreground="{DynamicResource DefaultForeground}"/>
 
                             <Button Content="Lưu giao diện" Margin="0,16,0,0" Width="160"
-                                    Background="{StaticResource Primary}" Foreground="White"/>
+                                    Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
+                                    Command="{Binding SaveSettingsCommand}"/>
                         </StackPanel>
                     </Border>
                 </TabItem>

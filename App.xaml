@@ -10,5 +10,6 @@
         <SolidColorBrush x:Key="BoardBackgroundBrush" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="CellBackgroundBrush" Color="#E2E8F0"/>
         <SolidColorBrush x:Key="DefaultForeground" Color="#0F172A"/>
+        <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#0F172A"/>
     </Application.Resources>
 </Application>

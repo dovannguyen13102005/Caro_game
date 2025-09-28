@@ -118,7 +118,7 @@ namespace Caro_game.ViewModels
 
         // --- Cài đặt giao diện ---
         public ObservableCollection<string> Themes { get; set; } =
-            new ObservableCollection<string> { "Dark (mặc định)", "Light" };
+            new ObservableCollection<string> { "Light (mặc định)", "Dark" };
 
         public ObservableCollection<string> PrimaryColors { get; set; } =
             new ObservableCollection<string> { "Xanh dương", "Tím", "Lục" };
@@ -204,7 +204,7 @@ namespace Caro_game.ViewModels
             IsAIEnabled = true;
             SelectedAIMode = "Khó";
 
-            SelectedTheme = "Dark (mặc định)";
+            SelectedTheme = "Light (mặc định)";
             SelectedPrimaryColor = "Xanh dương";
             IsSoundEnabled = true;
 
@@ -314,7 +314,9 @@ namespace Caro_game.ViewModels
 
         private void SaveSettings()
         {
-            if (SelectedTheme == "Light")
+            bool isLightTheme = SelectedTheme != null && SelectedTheme.StartsWith("Light", StringComparison.OrdinalIgnoreCase);
+
+            if (isLightTheme)
             {
                 UpdateBrush("WindowBackgroundBrush", Color.FromRgb(248, 250, 252));
                 UpdateBrush("PanelBackgroundBrush", Colors.White);
@@ -322,6 +324,7 @@ namespace Caro_game.ViewModels
                 UpdateBrush("BoardBackgroundBrush", Colors.White);
                 UpdateBrush("CellBackgroundBrush", Color.FromRgb(226, 232, 240));
                 Application.Current.Resources["DefaultForeground"] = new SolidColorBrush(Color.FromRgb(15, 23, 42));
+                Application.Current.Resources["PrimaryButtonForegroundBrush"] = new SolidColorBrush(Color.FromRgb(15, 23, 42));
             }
             else
             {
@@ -331,6 +334,7 @@ namespace Caro_game.ViewModels
                 UpdateBrush("BoardBackgroundBrush", (Color)ColorConverter.ConvertFromString("#0B1220"));
                 UpdateBrush("CellBackgroundBrush", (Color)ColorConverter.ConvertFromString("#0F172A"));
                 Application.Current.Resources["DefaultForeground"] = new SolidColorBrush(Colors.White);
+                Application.Current.Resources["PrimaryButtonForegroundBrush"] = new SolidColorBrush(Colors.White);
             }
 
             if (Application.Current.MainWindow != null)

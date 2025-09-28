@@ -123,6 +123,9 @@ namespace Caro_game.ViewModels
         public ObservableCollection<string> PrimaryColors { get; set; } =
             new ObservableCollection<string> { "Xanh dương", "Tím", "Lục" };
 
+        public ObservableCollection<string> TokenColors { get; set; } =
+            new ObservableCollection<string> { "Xanh dương", "Đỏ", "Cam", "Lục", "Tím", "Đen" };
+
         private string _selectedTheme;
         public string SelectedTheme
         {
@@ -141,6 +144,28 @@ namespace Caro_game.ViewModels
             set
             {
                 _selectedPrimaryColor = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private string _selectedXColor;
+        public string SelectedXColor
+        {
+            get => _selectedXColor;
+            set
+            {
+                _selectedXColor = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private string _selectedOColor;
+        public string SelectedOColor
+        {
+            get => _selectedOColor;
+            set
+            {
+                _selectedOColor = value;
                 OnPropertyChanged();
             }
         }
@@ -206,6 +231,8 @@ namespace Caro_game.ViewModels
 
             SelectedTheme = "Light (mặc định)";
             SelectedPrimaryColor = "Xanh dương";
+            SelectedXColor = "Xanh dương";
+            SelectedOColor = "Cam";
             IsSoundEnabled = true;
 
             // Commands
@@ -349,12 +376,28 @@ namespace Caro_game.ViewModels
 
             Application.Current.Resources["Primary"] = new SolidColorBrush(primaryColor);
 
+            Application.Current.Resources["XTokenBrush"] = new SolidColorBrush(ResolveTokenColor(SelectedXColor));
+            Application.Current.Resources["OTokenBrush"] = new SolidColorBrush(ResolveTokenColor(SelectedOColor));
+
             MessageBox.Show("Cài đặt đã được áp dụng!", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private static void UpdateBrush(string key, Color color)
         {
             Application.Current.Resources[key] = new SolidColorBrush(color);
+        }
+
+        private static Color ResolveTokenColor(string option)
+        {
+            return option switch
+            {
+                "Đỏ" => Colors.IndianRed,
+                "Cam" => Colors.DarkOrange,
+                "Lục" => Colors.MediumSeaGreen,
+                "Tím" => Colors.MediumPurple,
+                "Đen" => Colors.Black,
+                _ => Color.FromRgb(37, 99, 235)
+            };
         }
 
         private void Board_PropertyChanged(object? sender, PropertyChangedEventArgs e)

@@ -117,9 +117,22 @@
                                                             FontWeight="Bold"
                                                             FontSize="16"
                                                             Background="{Binding IsWinningCell, Converter={StaticResource BoolToBrushConverter}}"
-                                                            Foreground="{DynamicResource DefaultForeground}"
                                                             BorderBrush="#CBD5F5"
-                                                            BorderThickness="1"/>
+                                                            BorderThickness="1">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button">
+                                                                <Setter Property="Foreground" Value="{DynamicResource DefaultForeground}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Value}" Value="X">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource XTokenBrush}"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Value}" Value="O">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource OTokenBrush}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                    </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
@@ -177,6 +190,16 @@
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <TextBlock Text="Màu nhấn (Primary):" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
                                 <ComboBox Width="160" ItemsSource="{Binding PrimaryColors}" SelectedItem="{Binding SelectedPrimaryColor}"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBlock Text="Màu quân X:" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
+                                <ComboBox Width="160" ItemsSource="{Binding TokenColors}" SelectedItem="{Binding SelectedXColor}"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBlock Text="Màu quân O:" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
+                                <ComboBox Width="160" ItemsSource="{Binding TokenColors}" SelectedItem="{Binding SelectedOColor}"/>
                             </StackPanel>
 
                             <CheckBox Content="Âm thanh" Margin="0,6,0,0"

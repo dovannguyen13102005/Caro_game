@@ -9,13 +9,12 @@
         Title="Caro Game"
         Width="1000" Height="700"
         WindowStartupLocation="CenterScreen"
-        Background="#0F172A"
+        Background="{DynamicResource WindowBackgroundBrush}"
         WindowState="Maximized">
 
     <Window.Resources>
         <conv:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
-        <SolidColorBrush x:Key="Primary" Color="#2D7EF7"/>
-        <SolidColorBrush x:Key="DefaultForeground" Color="White"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </Window.Resources>
 
     <Window.DataContext>
@@ -23,12 +22,12 @@
     </Window.DataContext>
 
     <Grid Margin="20">
-        <Border Background="#111827" CornerRadius="12" Padding="16">
+        <Border Background="{DynamicResource PanelBackgroundBrush}" CornerRadius="12" Padding="16">
             <TabControl>
 
                 <!-- Chơi -->
                 <TabItem Header="▶  Chơi">
-                    <Border Background="#0B1220" Margin="-4" Padding="16">
+                    <Border Background="{DynamicResource BoardBackgroundBrush}" Margin="-4" Padding="16">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="280"/>
@@ -36,7 +35,7 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Cột trái: tùy chọn -->
-                            <Border Grid.Column="0" Background="#1E293B" CornerRadius="12" Padding="16">
+                            <Border Grid.Column="0" Background="{DynamicResource AccentPanelBackgroundBrush}" CornerRadius="12" Padding="16">
                                 <StackPanel>
                                     <TextBlock Text="Tùy chọn nhanh" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
                                     <Separator Margin="0,8"/>
@@ -67,22 +66,41 @@
                                                   SelectedItem="{Binding SelectedAIMode}"/>
                                     </StackPanel>
 
-                                    <CheckBox Content="Bật âm thanh" Margin="0,10,0,0" IsChecked="True" Foreground="{DynamicResource DefaultForeground}"/>
+                                    <CheckBox Content="Bật âm thanh" Margin="0,10,0,0"
+                                              IsChecked="{Binding IsSoundEnabled}"
+                                              Foreground="{DynamicResource DefaultForeground}"/>
 
                                     <Button Content="Bắt đầu ván mới" Margin="0,16,0,0"
                                             Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
                                             Command="{Binding StartGameCommand}"/>
+
+                                    <Button Content="{Binding PauseButtonText}" Margin="0,10,0,0"
+                                            Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
+                                            Command="{Binding TogglePauseCommand}" IsEnabled="{Binding HasActiveGame}"/>
+
+                                    <Button Content="Lưu ván" Margin="0,10,0,0"
+                                            Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
+                                            Command="{Binding SaveGameCommand}" IsEnabled="{Binding HasActiveGame}"/>
+
+                                    <Button Content="Mở ván" Margin="0,10,0,0"
+                                            Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
+                                            Command="{Binding OpenGameCommand}"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- Cột phải: bàn cờ -->
-                            <Border Grid.Column="1" Background="#111827" CornerRadius="12" Padding="16">
-                                <StackPanel>
+                            <Border Grid.Column="1" Background="{DynamicResource PanelBackgroundBrush}" CornerRadius="12" Padding="16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
                                     <TextBlock Text="{Binding Board.CurrentPlayer, StringFormat=Lượt hiện tại: {0}}"
                                                FontSize="16" FontWeight="Bold"
-                                               Foreground="#C7D2FE" Margin="0,0,0,12"/>
+                                               Foreground="{DynamicResource DefaultForeground}" Margin="0,0,0,12"/>
 
-                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                                         <ItemsControl ItemsSource="{Binding Board.Cells}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -100,13 +118,25 @@
                                                             FontSize="16"
                                                             Background="{Binding IsWinningCell, Converter={StaticResource BoolToBrushConverter}}"
                                                             Foreground="{DynamicResource DefaultForeground}"
-                                                            BorderBrush="#1F2937"
+                                                            BorderBrush="#CBD5F5"
                                                             BorderThickness="1"/>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </ScrollViewer>
-                                </StackPanel>
+
+                                    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}"
+                                               Margin="0,12,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+
+                                    <Border Grid.RowSpan="3" Background="{DynamicResource BoardBackgroundBrush}" Opacity="0.85"
+                                            Visibility="{Binding Board.IsPaused, Converter={StaticResource BoolToVisibilityConverter}}"
+                                            CornerRadius="12">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock Text="Tạm dừng" FontSize="32" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Nhấn &quot;Tiếp tục&quot; để chơi tiếp" Margin="0,8,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
                             </Border>
                         </Grid>
                     </Border>
@@ -114,7 +144,7 @@
 
                 <!-- Hướng dẫn -->
                 <TabItem Header="📖  Hướng dẫn">
-                    <Border Background="#0B1220" Margin="-4" Padding="16">
+                    <Border Background="{DynamicResource BoardBackgroundBrush}" Margin="-4" Padding="16">
                         <ScrollViewer>
                             <StackPanel>
                                 <TextBlock Text="Luật chơi cơ bản" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
@@ -135,7 +165,7 @@
 
                 <!-- Cài đặt -->
                 <TabItem Header="⚙️  Cài đặt">
-                    <Border Background="#0B1220" Margin="-4" Padding="16">
+                    <Border Background="{DynamicResource BoardBackgroundBrush}" Margin="-4" Padding="16">
                         <StackPanel>
                             <TextBlock Text="Tùy chỉnh giao diện" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
                             <Separator Margin="0,8"/>

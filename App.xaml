@@ -3,6 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
             
     <Application.Resources>
-        <SolidColorBrush x:Key="Primary" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="Primary" Color="#2563EB"/>
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="AccentPanelBackgroundBrush" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="BoardBackgroundBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="CellBackgroundBrush" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="DefaultForeground" Color="#0F172A"/>
     </Application.Resources>
 </Application>

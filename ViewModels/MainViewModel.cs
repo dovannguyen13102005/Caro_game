@@ -273,7 +273,7 @@ namespace Caro_game.ViewModels
             RowOptions = new ObservableCollection<int> { 15, 20, 25, 30, 40, 50, 75, 100 };
             ColumnOptions = new ObservableCollection<int> { 18, 25, 30, 35, 40, 50, 75, 100 };
             Players = new ObservableCollection<string> { "X (Bạn)", "O" };
-            AIModes = new ObservableCollection<string> { "Dễ", "Khó" };
+            AIModes = new ObservableCollection<string> { "Dễ", "Khó", "Bậc thầy" };
             TimeOptions = new ObservableCollection<TimeOption>
             {
                 new TimeOption(0, "Không giới hạn"),
@@ -310,7 +310,7 @@ namespace Caro_game.ViewModels
             int rows = SelectedRows;
             int cols = SelectedColumns;
 
-            var board = new BoardViewModel(rows, cols, FirstPlayer)
+            var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode)
             {
                 IsAIEnabled = IsAIEnabled,
                 AIMode = SelectedAIMode
@@ -537,6 +537,10 @@ namespace Caro_game.ViewModels
             {
                 IsGameActive = false;
                 IsGamePaused = false;
+
+                // 👉 Thêm dòng này để giải phóng Rapfi engine
+                Board?.DisposeEngine();
+
                 if (_configuredDuration > TimeSpan.Zero)
                 {
                     RemainingTime = _configuredDuration;

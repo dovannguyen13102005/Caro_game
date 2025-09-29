@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -36,6 +37,12 @@ namespace Caro_game.ViewModels
         private string _statusMessage;
         private DispatcherTimer? _gameTimer;
         private TimeSpan _configuredDuration = TimeSpan.Zero;
+        private RuleOption _selectedRuleOption;
+        private string _forbiddenCellsInput = string.Empty;
+        private string _handicapInput = string.Empty;
+        private bool _isBoardExpansionEnabled;
+        private int _expansionThreshold = 2;
+        private int _expansionMaxSize = 60;
 
         // Thuộc tính cho cấu hình bảng
         public ObservableCollection<int> RowOptions { get; }
@@ -43,6 +50,7 @@ namespace Caro_game.ViewModels
         public ObservableCollection<string> Players { get; }
         public ObservableCollection<string> AIModes { get; }
         public ObservableCollection<TimeOption> TimeOptions { get; }
+        public ObservableCollection<RuleOption> RuleOptions { get; }
 
         private int _selectedRows;
         public int SelectedRows
@@ -116,6 +124,8 @@ namespace Caro_game.ViewModels
                 {
                     _isAIEnabled = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsMasterMode));
+                    OnPropertyChanged(nameof(CanEditAdvancedOptions));
                 }
             }
         }
@@ -128,6 +138,92 @@ namespace Caro_game.ViewModels
                 if (_selectedAIMode != value)
                 {
                     _selectedAIMode = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsMasterMode));
+                    OnPropertyChanged(nameof(CanEditAdvancedOptions));
+                }
+            }
+        }
+
+        public bool IsMasterMode => IsAIEnabled && SelectedAIMode == "Bậc thầy";
+
+        public bool CanEditAdvancedOptions => !IsMasterMode;
+
+        public RuleOption SelectedRuleOption
+        {
+            get => _selectedRuleOption;
+            set
+            {
+                if (value != null && _selectedRuleOption != value)
+                {
+                    _selectedRuleOption = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string ForbiddenCellsInput
+        {
+            get => _forbiddenCellsInput;
+            set
+            {
+                if (_forbiddenCellsInput != value)
+                {
+                    _forbiddenCellsInput = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string HandicapInput
+        {
+            get => _handicapInput;
+            set
+            {
+                if (_handicapInput != value)
+                {
+                    _handicapInput = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool IsBoardExpansionEnabled
+        {
+            get => _isBoardExpansionEnabled;
+            set
+            {
+                if (_isBoardExpansionEnabled != value)
+                {
+                    _isBoardExpansionEnabled = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int ExpansionThreshold
+        {
+            get => _expansionThreshold;
+            set
+            {
+                int sanitized = Math.Max(0, value);
+                if (_expansionThreshold != sanitized)
+                {
+                    _expansionThreshold = sanitized;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int ExpansionMaxSize
+        {
+            get => _expansionMaxSize;
+            set
+            {
+                int sanitized = Math.Max(5, value);
+                if (_expansionMaxSize != sanitized)
+                {
+                    _expansionMaxSize = sanitized;
                     OnPropertyChanged();
                 }
             }
@@ -286,6 +382,16 @@ namespace Caro_game.ViewModels
                 new TimeOption(45, "45 phút"),
                 new TimeOption(60, "60 phút")
             };
+            RuleOptions = new ObservableCollection<RuleOption>
+            {
+                new RuleOption(GameRule.Freestyle, "Freestyle (tự do)"),
+                new RuleOption(GameRule.Standard, "Standard Gomoku"),
+                new RuleOption(GameRule.Renju, "Renju"),
+                new RuleOption(GameRule.Swap, "Swap"),
+                new RuleOption(GameRule.Swap2, "Swap2")
+            };
+
+            _selectedRuleOption = RuleOptions[0];
 
             SelectedRows = 40;
             SelectedColumns = 40;
@@ -300,6 +406,12 @@ namespace Caro_game.ViewModels
             RemainingTime = TimeSpan.FromMinutes(_selectedTimeOption.Minutes);
             StatusMessage = "Chưa bắt đầu";
 
+            _forbiddenCellsInput = string.Empty;
+            _handicapInput = string.Empty;
+            _isBoardExpansionEnabled = false;
+            _expansionThreshold = 2;
+            _expansionMaxSize = 60;
+
             StartGameCommand = new RelayCommand(StartGame);
             TogglePauseCommand = new RelayCommand(_ => TogglePause(), _ => Board != null && IsGameActive);
             SaveGameCommand = new RelayCommand(_ => SaveCurrentGame(), _ => Board != null);
@@ -312,12 +424,12 @@ namespace Caro_game.ViewModels
             int rows = SelectedRows;
             int cols = SelectedColumns;
 
-            if (IsAIEnabled && SelectedAIMode == "Bậc thầy")
+            bool masterMode = IsMasterMode;
+
+            if (masterMode)
             {
-                // Các kích thước Rapfi hỗ trợ
                 int[] supported = { 15, 20, 30 };
 
-                // Nếu người dùng chọn kích thước không hợp lệ → tự động set về 20×20
                 if (!supported.Contains(rows) || rows != cols)
                 {
                     rows = 20;
@@ -327,12 +439,61 @@ namespace Caro_game.ViewModels
                         "Kích thước đã được đặt về 20×20.",
                         "Thông báo",
                         MessageBoxButton.OK,
-                        MessageBoxImage.Information
-                    );
+                        MessageBoxImage.Information);
+                }
+
+                if (SelectedRuleOption.Rule is not GameRule.Freestyle and not GameRule.Standard)
+                {
+                    MessageBox.Show("Chế độ Bậc thầy chỉ hỗ trợ luật Freestyle hoặc Standard.",
+                        "Bậc thầy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(ForbiddenCellsInput) ||
+                    IsBoardExpansionEnabled ||
+                    !string.IsNullOrWhiteSpace(HandicapInput))
+                {
+                    MessageBox.Show("Bậc thầy không hỗ trợ ô cấm, bàn mở rộng hoặc khai cuộc sẵn.",
+                        "Bậc thầy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
             }
 
-            var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode)
+            if (!TryParseCoordinates(ForbiddenCellsInput, rows, cols, out var forbiddenCells, out var coordinateError))
+            {
+                MessageBox.Show(coordinateError!, "Ô cấm", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!TryParsePlacements(HandicapInput, rows, cols, out var placements, out var placementError))
+            {
+                MessageBox.Show(placementError!, "Khai cuộc", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string firstPlayerSymbol = FirstPlayer.StartsWith("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
+            var rule = SelectedRuleOption?.Rule ?? GameRule.Freestyle;
+
+            var setup = new GameSetup(rows, cols, rule, firstPlayerSymbol)
+            {
+                AllowExpansion = IsBoardExpansionEnabled && !masterMode,
+                ExpansionThreshold = ExpansionThreshold,
+                MaxRows = Math.Max(Math.Max(rows, cols), ExpansionMaxSize),
+                MaxColumns = Math.Max(Math.Max(rows, cols), ExpansionMaxSize)
+            };
+
+            foreach (var coord in forbiddenCells)
+            {
+                setup.ForbiddenCells.Add(coord);
+            }
+
+            foreach (var placement in placements)
+            {
+                setup.InitialPlacements.Add(placement);
+                setup.ForbiddenCells.Remove((placement.Row, placement.Col));
+            }
+
+            var board = new BoardViewModel(setup, SelectedAIMode)
             {
                 IsAIEnabled = IsAIEnabled
             };
@@ -349,6 +510,140 @@ namespace Caro_game.ViewModels
             IsGamePaused = false;
             board.IsPaused = false;
             StatusMessage = "Đang chơi";
+        }
+
+        private bool TryParseCoordinates(string input, int rows, int cols, out List<(int Row, int Col)> coordinates, out string? error)
+        {
+            coordinates = new List<(int, int)>();
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return true;
+            }
+
+            var tokens = input.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            var seen = new HashSet<(int, int)>();
+
+            foreach (var token in tokens)
+            {
+                var trimmed = token.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                var parts = trimmed.Split(',');
+                if (parts.Length != 2 || !int.TryParse(parts[0], out int row) || !int.TryParse(parts[1], out int col))
+                {
+                    error = $"Ô cấm không hợp lệ: \"{trimmed}\". Định dạng đúng: hàng,cột (0-based).";
+                    return false;
+                }
+
+                if (row < 0 || row >= rows || col < 0 || col >= cols)
+                {
+                    error = $"Ô cấm {trimmed} nằm ngoài bàn {rows}×{cols}.";
+                    return false;
+                }
+
+                if (seen.Add((row, col)))
+                {
+                    coordinates.Add((row, col));
+                }
+            }
+
+            return true;
+        }
+
+        private bool TryParsePlacements(string input, int rows, int cols, out List<StonePlacement> placements, out string? error)
+        {
+            placements = new List<StonePlacement>();
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return true;
+            }
+
+            var tokens = input.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            var seen = new HashSet<(int, int)>();
+
+            foreach (var token in tokens)
+            {
+                var trimmed = token.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                var parts = trimmed.Split('@');
+                if (parts.Length != 2)
+                {
+                    error = $"Khai cuộc không hợp lệ: \"{trimmed}\". Định dạng: X@hàng,cột.";
+                    return false;
+                }
+
+                var playerToken = parts[0].Trim().ToUpperInvariant();
+                if (playerToken != "X" && playerToken != "O")
+                {
+                    error = $"Khai cuộc \"{trimmed}\" chứa quân không hợp lệ. Chỉ dùng X hoặc O.";
+                    return false;
+                }
+
+                var coordParts = parts[1].Split(',');
+                if (coordParts.Length != 2 || !int.TryParse(coordParts[0], out int row) || !int.TryParse(coordParts[1], out int col))
+                {
+                    error = $"Khai cuộc \"{trimmed}\" có tọa độ không hợp lệ.";
+                    return false;
+                }
+
+                if (row < 0 || row >= rows || col < 0 || col >= cols)
+                {
+                    error = $"Khai cuộc \"{trimmed}\" nằm ngoài bàn {rows}×{cols}.";
+                    return false;
+                }
+
+                if (!seen.Add((row, col)))
+                {
+                    error = $"Khai cuộc trùng ô tại ({row},{col}).";
+                    return false;
+                }
+
+                placements.Add(new StonePlacement
+                {
+                    Row = row,
+                    Col = col,
+                    Player = playerToken
+                });
+            }
+
+            return true;
+        }
+
+        private static string BuildCoordinateString(IEnumerable<CoordinateState>? coordinates)
+        {
+            if (coordinates == null)
+            {
+                return string.Empty;
+            }
+
+            var items = coordinates.ToList();
+            return items.Count == 0
+                ? string.Empty
+                : string.Join("; ", items.Select(c => $"{c.Row},{c.Col}"));
+        }
+
+        private static string BuildPlacementString(IEnumerable<StonePlacementState>? placements)
+        {
+            if (placements == null)
+            {
+                return string.Empty;
+            }
+
+            var items = placements.ToList();
+            return items.Count == 0
+                ? string.Empty
+                : string.Join("; ", items.Select(p => $"{(string.IsNullOrWhiteSpace(p.Player) ? "X" : p.Player)}@{p.Row},{p.Col}"));
         }
 
 
@@ -475,7 +770,20 @@ namespace Caro_game.ViewModels
                         Col = c.Col,
                         Value = c.Value,
                         IsWinningCell = c.IsWinningCell
-                    }).ToList()
+                    }).ToList(),
+                    Rule = Board.Setup.Rule,
+                    ForbiddenCells = Board.Setup.ForbiddenCells
+                        .Select(fc => new CoordinateState { Row = fc.Row, Col = fc.Col })
+                        .ToList(),
+                    InitialStones = Board.Setup.InitialPlacements
+                        .Select(p => new StonePlacementState { Row = p.Row, Col = p.Col, Player = p.Player })
+                        .ToList(),
+                    AllowExpansion = Board.Setup.AllowExpansion,
+                    ExpansionThreshold = Board.Setup.ExpansionThreshold,
+                    MaxRows = Board.Setup.MaxRows,
+                    MaxColumns = Board.Setup.MaxColumns,
+                    InitialRows = Board.Setup.InitialRows,
+                    InitialColumns = Board.Setup.InitialColumns
                 };
 
                 var json = JsonSerializer.Serialize(state, new JsonSerializerOptions
@@ -537,7 +845,46 @@ namespace Caro_game.ViewModels
             bool masterModeRestored = state.IsAIEnabled && targetMode == "Bậc thầy";
             var boardAIMode = masterModeRestored ? "Khó" : targetMode;
 
-            var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode)
+            var setup = new GameSetup(state.Rows, state.Columns, state.Rule, state.FirstPlayer ?? "X")
+            {
+                AllowExpansion = state.AllowExpansion,
+                ExpansionThreshold = state.ExpansionThreshold,
+                MaxRows = state.MaxRows > 0 ? state.MaxRows : Math.Max(state.Rows, 60),
+                MaxColumns = state.MaxColumns > 0 ? state.MaxColumns : Math.Max(state.Columns, 60)
+            };
+
+            if (state.InitialRows > 0)
+            {
+                setup.InitialRows = state.InitialRows;
+            }
+
+            if (state.InitialColumns > 0)
+            {
+                setup.InitialColumns = state.InitialColumns;
+            }
+
+            if (state.ForbiddenCells != null)
+            {
+                foreach (var cell in state.ForbiddenCells)
+                {
+                    setup.ForbiddenCells.Add((cell.Row, cell.Col));
+                }
+            }
+
+            if (state.InitialStones != null)
+            {
+                foreach (var stone in state.InitialStones)
+                {
+                    setup.InitialPlacements.Add(new StonePlacement
+                    {
+                        Row = stone.Row,
+                        Col = stone.Col,
+                        Player = stone.Player
+                    });
+                }
+            }
+
+            var board = new BoardViewModel(setup, boardAIMode)
             {
                 IsAIEnabled = masterModeRestored ? false : state.IsAIEnabled
             };
@@ -545,6 +892,16 @@ namespace Caro_game.ViewModels
             board.LoadFromState(state);
 
             Board = board;
+
+            SelectedRuleOption = RuleOptions.FirstOrDefault(r => r.Rule == state.Rule) ?? RuleOptions[0];
+            ForbiddenCellsInput = BuildCoordinateString(state.ForbiddenCells);
+            HandicapInput = BuildPlacementString(state.InitialStones);
+            IsBoardExpansionEnabled = state.AllowExpansion;
+            ExpansionThreshold = state.ExpansionThreshold;
+            if (state.MaxRows > 0 || state.MaxColumns > 0)
+            {
+                ExpansionMaxSize = Math.Max(Math.Max(state.MaxRows, state.MaxColumns), ExpansionMaxSize);
+            }
 
             if (masterModeRestored)
             {

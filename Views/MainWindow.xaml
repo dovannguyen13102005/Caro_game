@@ -14,6 +14,7 @@
 
     <Window.Resources>
         <conv:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
+        <conv:BooleanNegationConverter x:Key="NegationConverter"/>
     </Window.Resources>
 
     <Window.DataContext>
@@ -41,18 +42,70 @@
 
                                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                         <TextBlock Text="Hàng:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
-                                        <ComboBox Width="120" ItemsSource="{Binding RowOptions}" SelectedItem="{Binding SelectedRows}"/>
+                                        <ComboBox Width="120"
+                                                  ItemsSource="{Binding RowOptions}"
+                                                  SelectedItem="{Binding SelectedRows}"
+                                                  IsEnabled="{Binding IsMasterMode, Converter={StaticResource NegationConverter}}"/>
                                     </StackPanel>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                         <TextBlock Text="Cột:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
-                                        <ComboBox Width="120" ItemsSource="{Binding ColumnOptions}" SelectedItem="{Binding SelectedColumns}"/>
+                                        <ComboBox Width="120"
+                                                  ItemsSource="{Binding ColumnOptions}"
+                                                  SelectedItem="{Binding SelectedColumns}"
+                                                  IsEnabled="{Binding IsMasterMode, Converter={StaticResource NegationConverter}}"/>
                                     </StackPanel>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Người đi trước:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120" ItemsSource="{Binding Players}" SelectedItem="{Binding FirstPlayer}"/>
                                     </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <TextBlock Text="Luật:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
+                                        <ComboBox Width="140"
+                                                  ItemsSource="{Binding RuleOptions}"
+                                                  SelectedItem="{Binding SelectedRuleOption}"
+                                                  DisplayMemberPath="DisplayName"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="Ô cấm (hàng,cột; ...)" Margin="0,10,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                    <TextBox Text="{Binding ForbiddenCellsInput, UpdateSourceTrigger=PropertyChanged}"
+                                             AcceptsReturn="True"
+                                             Height="60"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Foreground="{DynamicResource DefaultForeground}"
+                                             IsEnabled="{Binding CanEditAdvancedOptions}"
+                                             TextWrapping="Wrap"
+                                             ToolTip="Ví dụ: 0,0; 1,5; 7,7"/>
+
+                                    <TextBlock Text="Khai cuộc (X@hàng,cột; ...)" Margin="0,8,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                    <TextBox Text="{Binding HandicapInput, UpdateSourceTrigger=PropertyChanged}"
+                                             AcceptsReturn="True"
+                                             Height="60"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Foreground="{DynamicResource DefaultForeground}"
+                                             IsEnabled="{Binding CanEditAdvancedOptions}"
+                                             TextWrapping="Wrap"
+                                             ToolTip="Ví dụ: X@7,7; O@7,8"/>
+
+                                    <CheckBox Content="Bàn mở rộng khi chạm biên" Margin="0,10,0,0"
+                                              IsChecked="{Binding IsBoardExpansionEnabled}"
+                                              IsEnabled="{Binding CanEditAdvancedOptions}"
+                                              Foreground="{DynamicResource DefaultForeground}"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <TextBlock Text="Ngưỡng:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
+                                        <TextBox Width="60"
+                                                 Text="{Binding ExpansionThreshold, UpdateSourceTrigger=PropertyChanged}"
+                                                 IsEnabled="{Binding CanEditAdvancedOptions}"/>
+                                        <TextBlock Text="Giới hạn:" Margin="10,0,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                        <TextBox Width="60"
+                                                 Text="{Binding ExpansionMaxSize, UpdateSourceTrigger=PropertyChanged}"
+                                                 IsEnabled="{Binding CanEditAdvancedOptions}"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="Định dạng: dùng tọa độ 0-based." Margin="0,4,0,0" Foreground="{DynamicResource MutedForegroundBrush}"/>
 
                                     <CheckBox Content="Chơi với máy" Margin="0,10,0,0"
                                               IsChecked="{Binding IsAIEnabled}" Foreground="{DynamicResource DefaultForeground}"/>

@@ -29,7 +29,6 @@ namespace Caro_game.ViewModels
         private TimeOption _selectedTimeOption;
         private string _selectedTheme;
         private string _selectedPrimaryColor;
-        private bool _isSoundEnabled;
         private bool _isGameActive;
         private bool _isGamePaused;
         private TimeSpan _remainingTime;
@@ -93,6 +92,7 @@ namespace Caro_game.ViewModels
                 if (_board != null)
                 {
                     _board.GameEnded -= OnBoardGameEnded;
+                    _board.PropertyChanged -= OnBoardPropertyChanged;
                 }
 
                 _board = value;
@@ -100,10 +100,12 @@ namespace Caro_game.ViewModels
                 if (_board != null)
                 {
                     _board.GameEnded += OnBoardGameEnded;
+                    _board.PropertyChanged += OnBoardPropertyChanged;
                 }
 
                 OnPropertyChanged();
                 CommandManager.InvalidateRequerySuggested();
+                OnPropertyChanged(nameof(CurrentBoardSizeDisplay));
             }
         }
 
@@ -128,10 +130,19 @@ namespace Caro_game.ViewModels
                 if (_selectedAIMode != value)
                 {
                     _selectedAIMode = value;
+                    ApplyBoardSizeForMode();
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(PlannedBoardSize));
+                    OnPropertyChanged(nameof(CurrentBoardSizeDisplay));
                 }
             }
         }
+
+        public string PlannedBoardSize => SelectedAIMode == "Bậc thầy" ? "20 × 20" : "30 × 30";
+
+        public string CurrentBoardSizeDisplay => Board != null
+            ? $"{Board.Rows} × {Board.Columns}"
+            : PlannedBoardSize;
 
         // --- Cài đặt giao diện ---
         public ObservableCollection<string> Themes { get; } =
@@ -161,19 +172,6 @@ namespace Caro_game.ViewModels
                 if (_selectedPrimaryColor != value)
                 {
                     _selectedPrimaryColor = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public bool IsSoundEnabled
-        {
-            get => _isSoundEnabled;
-            set
-            {
-                if (_isSoundEnabled != value)
-                {
-                    _isSoundEnabled = value;
                     OnPropertyChanged();
                 }
             }
@@ -286,15 +284,14 @@ namespace Caro_game.ViewModels
                 new TimeOption(60, "60 phút")
             };
 
-            SelectedRows = 40;
-            SelectedColumns = 40;
+            SelectedRows = 30;
+            SelectedColumns = 30;
             FirstPlayer = "X (Bạn)";
             IsAIEnabled = true;
             SelectedAIMode = "Khó";
 
             SelectedTheme = DefaultDarkThemeLabel;
             SelectedPrimaryColor = "Xanh dương";
-            IsSoundEnabled = true;
             _selectedTimeOption = TimeOptions[3]; // 15 phút mặc định
             RemainingTime = TimeSpan.FromMinutes(_selectedTimeOption.Minutes);
             StatusMessage = "Chưa bắt đầu";
@@ -307,28 +304,9 @@ namespace Caro_game.ViewModels
 
         private void StartGame(object? parameter)
         {
-            int rows = SelectedRows;
-            int cols = SelectedColumns;
-
-            if (IsAIEnabled && SelectedAIMode == "Bậc thầy")
-            {
-                // Các kích thước Rapfi hỗ trợ
-                int[] supported = { 15, 20, 30 };
-
-                // Nếu người dùng chọn kích thước không hợp lệ → tự động set về 20×20
-                if (!supported.Contains(rows) || rows != cols)
-                {
-                    rows = 20;
-                    cols = 20;
-                    MessageBox.Show(
-                        "AI Bậc thầy chỉ hỗ trợ các bàn 15×15, 20×20 hoặc 30×30.\n" +
-                        "Kích thước đã được đặt về 20×20.",
-                        "Thông báo",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information
-                    );
-                }
-            }
+            var (rows, cols) = GetBoardSizeForCurrentMode();
+            SelectedRows = rows;
+            SelectedColumns = cols;
 
             var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode)
             {
@@ -347,6 +325,7 @@ namespace Caro_game.ViewModels
             IsGamePaused = false;
             board.IsPaused = false;
             StatusMessage = "Đang chơi";
+
         }
 
 
@@ -574,6 +553,24 @@ namespace Caro_game.ViewModels
                 StatusMessage = message;   // setter private nhưng gọi trong chính class nên OK
             else
                 Application.Current?.Dispatcher?.Invoke(() => StatusMessage = message);
+        }
+
+        private (int rows, int cols) GetBoardSizeForCurrentMode()
+            => SelectedAIMode == "Bậc thầy" ? (20, 20) : (30, 30);
+
+        private void ApplyBoardSizeForMode()
+        {
+            var (rows, cols) = GetBoardSizeForCurrentMode();
+            SelectedRows = rows;
+            SelectedColumns = cols;
+        }
+
+        private void OnBoardPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(BoardViewModel.Rows) || e.PropertyName == nameof(BoardViewModel.Columns))
+            {
+                OnPropertyChanged(nameof(CurrentBoardSizeDisplay));
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

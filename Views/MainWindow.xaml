@@ -39,15 +39,15 @@
                                     <TextBlock Text="Tùy chọn nhanh" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
                                     <Separator Margin="0,8"/>
 
-                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <TextBlock Text="Hàng:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
-                                        <ComboBox Width="120" ItemsSource="{Binding RowOptions}" SelectedItem="{Binding SelectedRows}"/>
-                                    </StackPanel>
-
-                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <TextBlock Text="Cột:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
-                                        <ComboBox Width="120" ItemsSource="{Binding ColumnOptions}" SelectedItem="{Binding SelectedColumns}"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{Binding PlannedBoardSize, StringFormat=Kích thước khởi tạo: {0}}"
+                                               Margin="0,6,0,0"
+                                               Foreground="{DynamicResource DefaultForeground}"/>
+                                    <TextBlock Text="{Binding CurrentBoardSizeDisplay, StringFormat=Kích thước hiện tại: {0}}"
+                                               Margin="0,4,0,0"
+                                               Foreground="{DynamicResource DefaultForeground}"/>
+                                    <TextBlock Text="Bàn ở chế độ Dễ/Khó sẽ tự mở rộng khi đánh sát biên."
+                                               Margin="0,2,0,0"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"/>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Người đi trước:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
@@ -80,8 +80,6 @@
                                                Margin="0,10,0,0"
                                                FontWeight="Bold"
                                                Foreground="{DynamicResource AccentForegroundBrush}"/>
-
-                                    <CheckBox Content="Bật âm thanh" Margin="0,10,0,0" IsChecked="True" Foreground="{DynamicResource DefaultForeground}"/>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                                         <Button Content="Bắt đầu ván mới"
@@ -205,10 +203,6 @@
                                 <TextBlock Text="Màu nhấn (Primary):" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
                                 <ComboBox Width="160" ItemsSource="{Binding PrimaryColors}" SelectedItem="{Binding SelectedPrimaryColor}"/>
                             </StackPanel>
-
-                            <CheckBox Content="Âm thanh" Margin="0,6,0,0"
-                                      IsChecked="{Binding IsSoundEnabled}"
-                                      Foreground="{DynamicResource DefaultForeground}"/>
 
                             <Button Content="Lưu giao diện" Margin="0,16,0,0" Width="160"
                                     Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"

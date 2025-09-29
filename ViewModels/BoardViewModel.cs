@@ -12,14 +12,41 @@ namespace Caro_game.ViewModels
 {
     public class BoardViewModel : BaseViewModel
     {
-        public int Rows { get; }
-        public int Columns { get; }
+        private int _rows;
+        public int Rows
+        {
+            get => _rows;
+            private set
+            {
+                if (_rows != value)
+                {
+                    _rows = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private int _columns;
+        public int Columns
+        {
+            get => _columns;
+            private set
+            {
+                if (_columns != value)
+                {
+                    _columns = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
         public ObservableCollection<Cell> Cells { get; }
 
         private readonly Dictionary<(int Row, int Col), Cell> _cellLookup;
         private readonly HashSet<(int Row, int Col)> _candidatePositions;
         private readonly object _candidateLock = new();
         private readonly string _initialPlayer;
+        private readonly int _initialRows;
+        private readonly int _initialColumns;
         private string _currentPlayer;
         private EngineClient? _engine;
 
@@ -94,8 +121,8 @@ namespace Caro_game.ViewModels
 
         public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ")
         {
-            Rows = rows;
-            Columns = columns;
+            _initialRows = rows;
+            _initialColumns = columns;
             AIMode = aiMode;
             CurrentPlayer = firstPlayer.StartsWith("X", StringComparison.OrdinalIgnoreCase) ? "X" : "O";
 
@@ -104,14 +131,7 @@ namespace Caro_game.ViewModels
             _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
             _candidatePositions = new HashSet<(int, int)>();
 
-            for (int i = 0; i < rows * columns; i++)
-            {
-                int r = i / columns;
-                int c = i % columns;
-                var cell = new Cell(r, c, this);
-                Cells.Add(cell);
-                _cellLookup[(r, c)] = cell;
-            }
+            InitializeBoard(rows, columns);
 
             if (AIMode == "Bậc thầy")
             {
@@ -126,6 +146,8 @@ namespace Caro_game.ViewModels
 
             var movingPlayer = CurrentPlayer;
             cell.Value = movingPlayer;
+
+            ExpandBoardIfNeeded(cell.Row, cell.Col);
             UpdateCandidatePositions(cell.Row, cell.Col);
 
             // Kiểm tra thắng
@@ -450,13 +472,7 @@ namespace Caro_game.ViewModels
 
         public void ResetBoard()
         {
-            foreach (var cell in Cells)
-            {
-                cell.Value = string.Empty;
-                cell.IsWinningCell = false;
-            }
-
-            lock (_candidateLock) _candidatePositions.Clear();
+            InitializeBoard(_initialRows, _initialColumns);
 
             CurrentPlayer = _initialPlayer;
             IsPaused = false;
@@ -539,6 +555,118 @@ namespace Caro_game.ViewModels
         {
             _engine?.Dispose();
             _engine = null;
+        }
+
+        private void InitializeBoard(int rows, int columns)
+        {
+            Rows = rows;
+            Columns = columns;
+
+            Cells.Clear();
+            _cellLookup.Clear();
+
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < columns; c++)
+                {
+                    var cell = new Cell(r, c, this);
+                    Cells.Add(cell);
+                    _cellLookup[(r, c)] = cell;
+                }
+            }
+
+            lock (_candidateLock)
+            {
+                _candidatePositions.Clear();
+            }
+        }
+
+        private void ExpandBoardIfNeeded(int row, int col)
+        {
+            if (AIMode == "Bậc thầy")
+            {
+                return;
+            }
+
+            const int threshold = 2;
+            const int expansion = 5;
+
+            int addTop = row <= threshold ? expansion : 0;
+            int addBottom = Rows - 1 - row <= threshold ? expansion : 0;
+            int addLeft = col <= threshold ? expansion : 0;
+            int addRight = Columns - 1 - col <= threshold ? expansion : 0;
+
+            if (addTop == 0 && addBottom == 0 && addLeft == 0 && addRight == 0)
+            {
+                return;
+            }
+
+            ExpandBoard(addTop, addBottom, addLeft, addRight);
+        }
+
+        private void ExpandBoard(int addTop, int addBottom, int addLeft, int addRight)
+        {
+            var existingCells = Cells.ToList();
+
+            foreach (var existing in existingCells)
+            {
+                existing.Row += addTop;
+                existing.Col += addLeft;
+            }
+
+            HashSet<(int Row, int Col)> candidateSnapshot;
+            lock (_candidateLock)
+            {
+                candidateSnapshot = new HashSet<(int Row, int Col)>(_candidatePositions);
+            }
+
+            int newRows = Rows + addTop + addBottom;
+            int newColumns = Columns + addLeft + addRight;
+
+            Rows = newRows;
+            Columns = newColumns;
+
+            _cellLookup.Clear();
+            Cells.Clear();
+
+            var cellMap = existingCells.ToDictionary(c => (c.Row, c.Col));
+
+            for (int r = 0; r < Rows; r++)
+            {
+                for (int c = 0; c < Columns; c++)
+                {
+                    if (!cellMap.TryGetValue((r, c), out var cell))
+                    {
+                        cell = new Cell(r, c, this);
+                    }
+                    else
+                    {
+                        cell.Row = r;
+                        cell.Col = c;
+                    }
+
+                    Cells.Add(cell);
+                    _cellLookup[(r, c)] = cell;
+                }
+            }
+
+            lock (_candidateLock)
+            {
+                _candidatePositions.Clear();
+
+                foreach (var pos in candidateSnapshot)
+                {
+                    var shifted = (Row: pos.Row + addTop, Col: pos.Col + addLeft);
+
+                    if (shifted.Row >= 0 && shifted.Row < Rows &&
+                        shifted.Col >= 0 && shifted.Col < Columns &&
+                        _cellLookup.TryGetValue((shifted.Row, shifted.Col), out var candidateCell) &&
+                        string.IsNullOrEmpty(candidateCell.Value))
+                    {
+                        _candidatePositions.Add((shifted.Row, shifted.Col));
+                    }
+                }
+            }
         }
     }
 }

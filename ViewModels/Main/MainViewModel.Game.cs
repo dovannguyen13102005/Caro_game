@@ -10,7 +10,7 @@ public partial class MainViewModel
     private void StartGame(object? parameter)
     {
         bool isProfessionalMode = SelectedAIMode == "Chuyên nghiệp";
-        int baseSize = isProfessionalMode ? 19 : 30;
+        int baseSize = isProfessionalMode ? 19 : 35;
         int rows = baseSize;
         int cols = baseSize;
 

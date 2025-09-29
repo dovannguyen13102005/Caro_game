@@ -483,6 +483,31 @@ namespace Caro_game.ViewModels
             }
         }
 
+        public void ApplyState(GameState state)
+        {
+            InitializeBoard(state.Rows, state.Columns);
+
+            if (state.Cells != null)
+            {
+                foreach (var cellState in state.Cells)
+                {
+                    if (_cellLookup.TryGetValue((cellState.Row, cellState.Col), out var cell))
+                    {
+                        cell.Value = cellState.Value ?? string.Empty;
+                        cell.IsWinningCell = cellState.IsWinningCell;
+
+                        if (!string.IsNullOrEmpty(cell.Value))
+                        {
+                            UpdateCandidatePositions(cell.Row, cell.Col);
+                        }
+                    }
+                }
+            }
+
+            CurrentPlayer = string.IsNullOrWhiteSpace(state.CurrentPlayer) ? _initialPlayer : state.CurrentPlayer!;
+            IsPaused = state.IsPaused;
+        }
+
         public void PauseBoard() => IsPaused = true;
 
         private void TryInitializeMasterEngine()

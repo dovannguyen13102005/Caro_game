@@ -26,6 +26,7 @@ namespace Caro_game.ViewModels
         private BoardViewModel? _board;
         private bool _isAIEnabled;
         private string _selectedAIMode;
+        private bool _suppressBoardSizeAutoUpdate;
         private TimeOption _selectedTimeOption;
         private string _selectedTheme;
         private string _selectedPrimaryColor;
@@ -130,7 +131,10 @@ namespace Caro_game.ViewModels
                 if (_selectedAIMode != value)
                 {
                     _selectedAIMode = value;
-                    ApplyBoardSizeForMode();
+                    if (!_suppressBoardSizeAutoUpdate)
+                    {
+                        ApplyBoardSizeForMode();
+                    }
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(PlannedBoardSize));
                     OnPropertyChanged(nameof(CurrentBoardSizeDisplay));
@@ -264,6 +268,7 @@ namespace Caro_game.ViewModels
         public ICommand StartGameCommand { get; }
         public ICommand TogglePauseCommand { get; }
         public ICommand SaveGameCommand { get; }
+        public ICommand LoadGameCommand { get; }
         public ICommand SaveSettingsCommand { get; }
 
         public MainViewModel()
@@ -299,6 +304,7 @@ namespace Caro_game.ViewModels
             StartGameCommand = new RelayCommand(StartGame);
             TogglePauseCommand = new RelayCommand(_ => TogglePause(), _ => Board != null && IsGameActive);
             SaveGameCommand = new RelayCommand(_ => SaveCurrentGame(), _ => Board != null);
+            LoadGameCommand = new RelayCommand(_ => LoadSavedGame());
             SaveSettingsCommand = new RelayCommand(_ => SaveSettings());
         }
 
@@ -360,19 +366,22 @@ namespace Caro_game.ViewModels
             }
         }
 
-        private void StartTimer()
+        private void StartTimer(TimeSpan? remainingOverride = null, bool autoStart = true)
         {
             StopTimer();
 
             if (_configuredDuration > TimeSpan.Zero)
             {
-                RemainingTime = _configuredDuration;
+                RemainingTime = remainingOverride ?? _configuredDuration;
                 _gameTimer = new DispatcherTimer
                 {
                     Interval = TimeSpan.FromSeconds(1)
                 };
                 _gameTimer.Tick += OnGameTimerTick;
-                _gameTimer.Start();
+                if (autoStart)
+                {
+                    _gameTimer.Start();
+                }
             }
             else
             {
@@ -563,6 +572,139 @@ namespace Caro_game.ViewModels
             var (rows, cols) = GetBoardSizeForCurrentMode();
             SelectedRows = rows;
             SelectedColumns = cols;
+        }
+
+        private void LoadSavedGame()
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "Caro Save|*.json|Tất cả tệp|*.*"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            try
+            {
+                var json = File.ReadAllText(dialog.FileName);
+                var state = JsonSerializer.Deserialize<GameState>(json);
+
+                if (state == null)
+                {
+                    MessageBox.Show("Không thể đọc được dữ liệu ván đấu.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                if (state.Rows <= 0 || state.Columns <= 0)
+                {
+                    MessageBox.Show("Tệp lưu không hợp lệ.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                bool hasAnyMove = state.Cells?.Any(c => !string.IsNullOrEmpty(c.Value)) == true;
+                string aiMode = string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!;
+                bool aiEnabled = state.IsAIEnabled;
+
+                if (aiMode == "Bậc thầy" && hasAnyMove)
+                {
+                    MessageBox.Show("Chế độ Bậc thầy chưa hỗ trợ tiếp tục ván đã lưu. AI sẽ chuyển sang chế độ Khó.",
+                        "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+                    aiMode = "Khó";
+                }
+
+                var firstPlayerForBoard = string.IsNullOrWhiteSpace(state.FirstPlayer) ? "X" : state.FirstPlayer!;
+                var board = new BoardViewModel(state.Rows, state.Columns, firstPlayerForBoard, aiMode)
+                {
+                    IsAIEnabled = aiEnabled && aiMode != "Bậc thầy"
+                };
+
+                board.ApplyState(state);
+
+                Board = board;
+
+                _suppressBoardSizeAutoUpdate = true;
+                SelectedAIMode = aiMode;
+                _suppressBoardSizeAutoUpdate = false;
+
+                SelectedRows = board.Rows;
+                SelectedColumns = board.Columns;
+
+                FirstPlayer = firstPlayerForBoard.StartsWith("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X (Bạn)";
+                IsAIEnabled = board.IsAIEnabled;
+
+                var matchingTime = TimeOptions.FirstOrDefault(t => t.Minutes == state.TimeLimitMinutes);
+                if (matchingTime == null)
+                {
+                    matchingTime = new TimeOption(state.TimeLimitMinutes, $"{state.TimeLimitMinutes} phút (đã lưu)");
+                    TimeOptions.Add(matchingTime);
+                }
+
+                _selectedTimeOption = matchingTime;
+                OnPropertyChanged(nameof(SelectedTimeOption));
+
+                _configuredDuration = state.TimeLimitMinutes > 0
+                    ? TimeSpan.FromMinutes(state.TimeLimitMinutes)
+                    : TimeSpan.Zero;
+
+                var hasWinner = state.Cells?.Any(c => c.IsWinningCell && !string.IsNullOrEmpty(c.Value)) == true;
+
+                StopTimer();
+
+                if (hasWinner)
+                {
+                    if (_configuredDuration > TimeSpan.Zero)
+                    {
+                        var remainingSeconds = state.RemainingSeconds ?? (int)_configuredDuration.TotalSeconds;
+                        RemainingTime = TimeSpan.FromSeconds(Math.Max(0, remainingSeconds));
+                    }
+                    else
+                    {
+                        RemainingTime = TimeSpan.Zero;
+                    }
+
+                    IsGameActive = false;
+                    IsGamePaused = false;
+                    board.IsPaused = true;
+                    StatusMessage = "Ván đấu đã kết thúc";
+                }
+                else
+                {
+                    if (_configuredDuration > TimeSpan.Zero)
+                    {
+                        var remainingSeconds = state.RemainingSeconds ?? (int)_configuredDuration.TotalSeconds;
+                        var remaining = TimeSpan.FromSeconds(Math.Max(0, remainingSeconds));
+
+                        StartTimer(remaining, autoStart: !state.IsPaused);
+                    }
+                    else
+                    {
+                        RemainingTime = TimeSpan.Zero;
+                    }
+
+                    IsGameActive = true;
+                    IsGamePaused = state.IsPaused;
+                    board.IsPaused = state.IsPaused;
+                    StatusMessage = state.IsPaused ? "Đang tạm dừng" : "Đang chơi";
+                }
+
+                OnPropertyChanged(nameof(RemainingTimeDisplay));
+                CommandManager.InvalidateRequerySuggested();
+                MessageBox.Show("Đã mở ván đấu thành công!", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (JsonException)
+            {
+                MessageBox.Show("Tệp lưu bị hỏng hoặc không đúng định dạng.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show($"Không thể đọc tệp: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Có lỗi xảy ra khi mở ván đấu: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void OnBoardPropertyChanged(object? sender, PropertyChangedEventArgs e)

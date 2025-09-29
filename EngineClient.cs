@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 
@@ -27,9 +27,8 @@ namespace Caro_game
             _input = _process.StandardInput;
             _output = _process.StandardOutput;
 
-            // cấu hình thời gian
-            Send("INFO timeout_turn 1000");   // 1 giây mỗi nước
-            Send("INFO timeout_match 60000"); // 60 giây mỗi ván
+            Send("INFO timeout_turn 1000");
+            Send("INFO timeout_match 60000");
         }
 
         private void Send(string cmd)
@@ -47,7 +46,7 @@ namespace Caro_game
             }
         }
 
-        private string Receive()
+        private string ReceiveLine()
         {
             try
             {
@@ -68,7 +67,6 @@ namespace Caro_game
                 if (_process != null && _process.HasExited)
                 {
                     Console.WriteLine("[Engine] process exited unexpectedly!");
-                    return string.Empty;
                 }
             }
             catch (Exception ex)
@@ -78,34 +76,42 @@ namespace Caro_game
             return string.Empty;
         }
 
-        /// <summary>
-        /// Khởi tạo bàn cờ (phải gọi khi bắt đầu ván)
-        /// </summary>
-        public void StartBoard(int size) => Send($"START {size}");
+        private bool AwaitOk()
+        {
+            var resp = ReceiveLine();
+            return !string.IsNullOrEmpty(resp) && resp.StartsWith("OK", StringComparison.OrdinalIgnoreCase);
+        }
 
-        /// <summary>
-        /// Nếu AI đi trước (O trước), gọi BEGIN để engine trả về nước đi đầu tiên
-        /// </summary>
+        /// <summary> START N (bàn vuông N x N) và đọc OK </summary>
+        public bool StartSquare(int size)
+        {
+            Send($"START {size}");
+            return AwaitOk();
+        }
+
+        /// <summary> RECTSTART W,H (bàn chữ nhật). W=x=Columns, H=y=Rows. Đọc OK. </summary>
+        public bool StartRect(int width, int height)
+        {
+            // theo protocol là "RECTSTART W,H" (có dấu phẩy)
+            Send($"RECTSTART {width},{height}");
+            return AwaitOk();
+        }
+
         public string Begin()
         {
             Send("BEGIN");
-            return Receive();
+            return ReceiveLine(); // trả về "x,y"
         }
 
-        /// <summary>
-        /// Báo cho engine biết nước đi mới của đối thủ (X hoặc O)
-        /// và nhận về nước đi tiếp theo của AI
-        /// </summary>
         public string Turn(int x, int y)
         {
             Send($"TURN {x},{y}");
-            return Receive();
+            return ReceiveLine(); // trả về "x,y"
         }
 
         public void End()
         {
             try { Send("END"); } catch { }
-
             try
             {
                 if (_process != null && !_process.HasExited)
@@ -120,28 +126,7 @@ namespace Caro_game
             _input?.Dispose();
             _output?.Dispose();
             _process?.Dispose();
-
-            _input = null;
-            _output = null;
-            _process = null;
-        }
-        public string SendBoard(IEnumerable<(int x, int y, int player)> moves)
-        {
-            try
-            {
-                Send("BOARD");
-                foreach (var m in moves)
-                {
-                    Send($"{m.x},{m.y},{m.player}");
-                }
-                Send("DONE");
-                return Receive();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[EngineClient] SendBoard error: " + ex.Message);
-                return string.Empty;
-            }
+            _input = null; _output = null; _process = null;
         }
     }
 }

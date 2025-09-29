@@ -20,10 +20,6 @@ namespace Caro_game.ViewModels
         private readonly HashSet<(int Row, int Col)> _candidatePositions;
         private readonly object _candidateLock = new();
         private readonly string _initialPlayer;
-        // chọn giữa BOARD và TURN
-        private bool UseBoardMode = false; // false = dùng TURN (nhanh), true = dùng BOARD (an toàn)
-
-
         private string _currentPlayer;
         public string CurrentPlayer
         {
@@ -117,23 +113,24 @@ namespace Caro_game.ViewModels
             if (IsPaused || !string.IsNullOrEmpty(cell.Value))
                 return;
 
-            cell.Value = CurrentPlayer;
+            var movingPlayer = CurrentPlayer;
+            cell.Value = movingPlayer;
             UpdateCandidatePositions(cell.Row, cell.Col);
 
-            if (CheckWin(cell.Row, cell.Col, CurrentPlayer))
+            if (CheckWin(cell.Row, cell.Col, movingPlayer))
             {
-                HighlightWinningCells(cell.Row, cell.Col, CurrentPlayer);
+                HighlightWinningCells(cell.Row, cell.Col, movingPlayer);
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    var dialog = new Views.WinDialog($"Người chơi {CurrentPlayer} thắng!")
+                    var dialog = new Views.WinDialog($"Người chơi {movingPlayer} thắng!")
                     {
                         Owner = Application.Current.MainWindow
                     };
 
                     dialog.ShowDialog();
 
-                    GameEnded?.Invoke(this, new GameEndedEventArgs(CurrentPlayer, dialog.IsPlayAgain, true));
+                    GameEnded?.Invoke(this, new GameEndedEventArgs(movingPlayer, dialog.IsPlayAgain, true));
 
                     if (dialog.IsPlayAgain)
                     {
@@ -150,64 +147,29 @@ namespace Caro_game.ViewModels
             }
 
             // Đổi lượt
-            CurrentPlayer = CurrentPlayer == "X" ? "O" : "X";
+            CurrentPlayer = movingPlayer == "X" ? "O" : "X";
 
             // Nếu là lượt AI
-            if (IsAIEnabled && CurrentPlayer == "O" && AIMode == "Bậc thầy" && _engine != null)
+            if (IsAIEnabled && CurrentPlayer == "O")
             {
-                try
+                if (AIMode == "Bậc thầy" && _engine != null)
                 {
-                    string aiMove = string.Empty;
-
-                    if (UseBoardMode)
+                    try
                     {
-                        // --- Dùng BOARD ---
-                        var moves = Cells
-                            .Where(c => !string.IsNullOrEmpty(c.Value))
-                            .Select(c => (c.Col, c.Row, c.Value == "X" ? 1 : 2))
-                            .ToList();
-
-                        aiMove = _engine.SendBoard(moves);
-                        Console.WriteLine("[Rapfi] BOARD -> " + aiMove);
+                        var aiMove = _engine.Turn(cell.Col, cell.Row);
+                        PlaceAiIfValid(aiMove);
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        // --- Dùng TURN ---
-                        if (Cells.All(c => string.IsNullOrEmpty(c.Value)))
-                        {
-                            aiMove = _engine.Begin(); // nếu AI đi trước
-                        }
-                        else
-                        {
-                            aiMove = _engine.Turn(cell.Col, cell.Row); // báo nước đi vừa rồi
-                        }
-                        Console.WriteLine("[Rapfi] TURN -> " + aiMove);
-                    }
-
-                    if (!string.IsNullOrEmpty(aiMove))
-                    {
-                        var parts = aiMove.Split(',');
-                        if (parts.Length == 2 &&
-                            int.TryParse(parts[0], out int aiX) &&
-                            int.TryParse(parts[1], out int aiY))
-                        {
-                            if (_cellLookup.TryGetValue((aiY, aiX), out var aiCell))
-                            {
-                                Application.Current.Dispatcher.Invoke(() => MakeMove(aiCell));
-                            }
-                        }
+                        MessageBox.Show($"AI engine error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        DisposeEngine();
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show($"AI engine error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    DisposeEngine();
+                    // AI Dễ / Khó
+                    Task.Run(AIMove);
                 }
-            }
-            else if (IsAIEnabled && CurrentPlayer == "O")
-            {
-                // AI Dễ / Khó
-                Task.Run(AIMove);
             }
         }
 
@@ -219,40 +181,7 @@ namespace Caro_game.ViewModels
 
             Cell? bestCell = null;
 
-            if (AIMode == "Bậc thầy" && _engine != null)
-            {
-                string aiMove;
-
-                if (Cells.All(c => string.IsNullOrEmpty(c.Value)))
-                {
-                    // Nếu AI đi trước
-                    aiMove = _engine.Begin();
-                }
-                else
-                {
-                    // Báo nước đi vừa rồi của người chơi
-                    var last = Cells.LastOrDefault(c => c.Value == "X");
-                    if (last == null) return;
-
-                    aiMove = _engine.Turn(last.Col, last.Row);
-                }
-
-                if (!string.IsNullOrEmpty(aiMove))
-                {
-                    var parts = aiMove.Split(',');
-                    if (parts.Length == 2 &&
-                        int.TryParse(parts[0], out int aiX) &&
-                        int.TryParse(parts[1], out int aiY))
-                    {
-                        if (_cellLookup.TryGetValue((aiY, aiX), out var cell))
-                        {
-                            Application.Current.Dispatcher.Invoke(() => MakeMove(cell));
-                        }
-                    }
-                }
-            }
-
-            else if (AIMode == "Dễ")
+            if (AIMode == "Dễ")
             {
                 var lastPlayerMove = Cells.LastOrDefault(c => c.Value == "X");
                 if (lastPlayerMove != null)
@@ -302,6 +231,20 @@ namespace Caro_game.ViewModels
             if (bestCell != null)
             {
                 Application.Current.Dispatcher.Invoke(() => MakeMove(bestCell));
+            }
+        }
+
+        private void PlaceAiIfValid(string aiMove)
+        {
+            if (string.IsNullOrWhiteSpace(aiMove)) return;
+
+            var parts = aiMove.Split(',');
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0], out int aiX) &&
+                int.TryParse(parts[1], out int aiY) &&
+                _cellLookup.TryGetValue((aiY, aiX), out var aiCell))
+            {
+                Application.Current.Dispatcher.Invoke(() => MakeMove(aiCell));
             }
         }
 
@@ -530,7 +473,29 @@ namespace Caro_game.ViewModels
             try
             {
                 _engine = new EngineClient(enginePath);
-                _engine.StartBoard(Rows);
+
+                bool ok = (Rows == Columns)
+                    ? _engine.StartSquare(Rows)
+                    : _engine.StartRect(Columns, Rows);
+
+                if (!ok)
+                {
+                    MessageBox.Show(
+                        "AI không hỗ trợ kích thước bàn hiện tại. Hãy chọn bàn vuông (ví dụ 15x15, 20x20).",
+                        "Bậc thầy - không hỗ trợ RECTSTART",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                    DisposeEngine();
+                    IsAIEnabled = false;
+                    AIMode = "Khó";
+                    return;
+                }
+
+                if (Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
+                {
+                    var aiMove = _engine.Begin();
+                    PlaceAiIfValid(aiMove);
+                }
             }
             catch (Exception ex)
             {

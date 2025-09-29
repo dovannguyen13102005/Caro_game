@@ -10,9 +10,17 @@ namespace Caro_game.ViewModels;
 
 public partial class BoardViewModel
 {
-    public void MakeMove(Cell cell)
+    public void MakeHumanMove(Cell cell)
+        => ExecuteMove(cell, isAiMove: false);
+
+    private void ExecuteMove(Cell cell, bool isAiMove)
     {
         if (IsPaused || !string.IsNullOrEmpty(cell.Value))
+        {
+            return;
+        }
+
+        if (!isAiMove && IsAIEnabled && CurrentPlayer != _humanSymbol)
         {
             return;
         }
@@ -73,44 +81,57 @@ public partial class BoardViewModel
 
         CurrentPlayer = movingPlayer == "X" ? "O" : "X";
 
-        if (IsAIEnabled && CurrentPlayer == "O")
+        TriggerAiTurnIfNeeded(cell, movingPlayer);
+    }
+
+    public void TryStartAITurn()
+        => TriggerAiTurnIfNeeded(null, null);
+
+    private void TriggerAiTurnIfNeeded(Cell? lastMoveCell, string? lastMovePlayer)
+    {
+        if (!IsAIEnabled || IsPaused || CurrentPlayer != _aiSymbol)
         {
-            if (AIMode == "Chuyên nghiệp" && _engine != null)
-            {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    var mainVm = Application.Current.MainWindow?.DataContext as MainViewModel;
-                    mainVm?.SetStatus("AI đang suy nghĩ...");
-                });
+            return;
+        }
 
-                Task.Run(() =>
-                {
-                    try
-                    {
-                        string aiMove = _engine!.Turn(cell.Col, cell.Row);
-                        PlaceAiIfValid(aiMove);
-
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            var mainVm = Application.Current.MainWindow?.DataContext as MainViewModel;
-                            mainVm?.SetStatus("Đang chơi");
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            MessageBox.Show($"AI engine error: {ex.Message}", "Error",
-                                MessageBoxButton.OK, MessageBoxImage.Error);
-                        });
-                        DisposeEngine();
-                    }
-                });
-            }
-            else
+        if (AIMode == "Chuyên nghiệp" && _engine != null)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                Task.Run(AIMove);
-            }
+                var mainVm = Application.Current.MainWindow?.DataContext as MainViewModel;
+                mainVm?.SetStatus("AI đang suy nghĩ...");
+            });
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    string aiMove = lastMovePlayer == _humanSymbol && lastMoveCell != null
+                        ? _engine!.Turn(lastMoveCell.Col, lastMoveCell.Row)
+                        : _engine!.Begin();
+
+                    PlaceAiIfValid(aiMove);
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var mainVm = Application.Current.MainWindow?.DataContext as MainViewModel;
+                        mainVm?.SetStatus("Đang chơi");
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"AI engine error: {ex.Message}", "Error",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
+                    DisposeEngine();
+                }
+            });
+        }
+        else
+        {
+            Task.Run(AIMove);
         }
     }
 
@@ -136,6 +157,8 @@ public partial class BoardViewModel
         {
             TryInitializeProfessionalEngine();
         }
+
+        TriggerAiTurnIfNeeded(null, null);
     }
 
     private void AIMove()
@@ -149,7 +172,7 @@ public partial class BoardViewModel
 
         if (AIMode == "Dễ")
         {
-            var lastPlayerMove = Cells.LastOrDefault(c => c.Value == "X");
+            var lastPlayerMove = Cells.LastOrDefault(c => c.Value == _humanSymbol);
             if (lastPlayerMove != null)
             {
                 var neighbors = Cells.Where(c =>
@@ -199,7 +222,7 @@ public partial class BoardViewModel
 
         if (bestCell != null)
         {
-            Application.Current.Dispatcher.Invoke(() => MakeMove(bestCell));
+            Application.Current.Dispatcher.Invoke(() => ExecuteMove(bestCell, true));
         }
     }
 
@@ -216,7 +239,7 @@ public partial class BoardViewModel
             int.TryParse(parts[1], out int aiY) &&
             _cellLookup.TryGetValue((aiY, aiX), out var aiCell))
         {
-            Application.Current.Dispatcher.Invoke(() => MakeMove(aiCell));
+            Application.Current.Dispatcher.Invoke(() => ExecuteMove(aiCell, true));
         }
     }
 
@@ -264,9 +287,9 @@ public partial class BoardViewModel
     private int EvaluateCellAdvanced(Cell cell)
     {
         int score = 0;
-        score += EvaluatePotential(cell, "O");
-        score += EvaluatePotential(cell, "X") * 2;
-        score += ProximityScore(cell, "X") * 5;
+        score += EvaluatePotential(cell, _aiSymbol);
+        score += EvaluatePotential(cell, _humanSymbol) * 2;
+        score += ProximityScore(cell, _humanSymbol) * 5;
         return score;
     }
 

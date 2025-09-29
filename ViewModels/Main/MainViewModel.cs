@@ -30,6 +30,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private string _statusMessage;
     private DispatcherTimer? _gameTimer;
     private TimeSpan _configuredDuration = TimeSpan.Zero;
+    private readonly Random _random = new();
 
     public ObservableCollection<string> Players { get; }
     public ObservableCollection<string> AIModes { get; }
@@ -216,7 +217,12 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     public MainViewModel()
     {
-        Players = new ObservableCollection<string> { "X (Bạn)", "O" };
+        Players = new ObservableCollection<string>
+        {
+            "Bạn đi trước",
+            "Máy đi trước",
+            "Ngẫu nhiên"
+        };
         AIModes = new ObservableCollection<string> { "Dễ", "Khó", "Chuyên nghiệp" };
         TimeOptions = new ObservableCollection<TimeOption>
         {
@@ -230,7 +236,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             new TimeOption(60, "60 phút")
         };
 
-        FirstPlayer = "X (Bạn)";
+        FirstPlayer = Players[0];
         IsAIEnabled = true;
         SelectedAIMode = "Khó";
 

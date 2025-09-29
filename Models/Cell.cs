@@ -34,7 +34,7 @@ namespace Caro_game.Models
             Col = col;
             Value = string.Empty;
             IsWinningCell = false;
-            ClickCommand = new RelayCommand(o => board.MakeMove(this));
+            ClickCommand = new RelayCommand(_ => board.MakeHumanMove(this));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

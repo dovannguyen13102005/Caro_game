@@ -44,6 +44,8 @@ public partial class BoardViewModel : BaseViewModel
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
     private readonly object _candidateLock = new();
     private readonly string _initialPlayer;
+    private readonly string _humanSymbol;
+    private readonly string _aiSymbol;
 
     private string _currentPlayer;
     public string CurrentPlayer
@@ -111,19 +113,25 @@ public partial class BoardViewModel : BaseViewModel
     }
 
     public string InitialPlayer => _initialPlayer;
+    public string HumanSymbol => _humanSymbol;
+    public string AISymbol => _aiSymbol;
 
     private EngineClient? _engine;
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ")
+    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
     {
         Rows = rows;
         Columns = columns;
         AIMode = aiMode;
-        CurrentPlayer = firstPlayer.StartsWith("X", StringComparison.OrdinalIgnoreCase) ? "X" : "O";
+        CurrentPlayer = firstPlayer.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 
         _initialPlayer = CurrentPlayer;
+        _humanSymbol = string.IsNullOrWhiteSpace(humanSymbol)
+            ? CurrentPlayer
+            : (humanSymbol.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X");
+        _aiSymbol = _humanSymbol == "X" ? "O" : "X";
         Cells = new ObservableCollection<Cell>();
         _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
         _candidatePositions = new HashSet<(int, int)>();

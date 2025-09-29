@@ -42,7 +42,7 @@ public partial class BoardViewModel
             }
 
             // ✅ Fix: Kiểm tra Cells trước khi gọi All
-            if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
+            if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {
                 var aiMove = _engine.Begin();
                 PlaceAiIfValid(aiMove);

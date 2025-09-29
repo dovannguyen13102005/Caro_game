@@ -75,20 +75,20 @@ namespace Caro_game.ViewModels
             }
         }
 
-        private string _aiMode = "Dễ";
-        public string AIMode
+        private string _aiLevel = "Dễ";
+        public string AILevel
         {
-            get => _aiMode;
+            get => _aiLevel;
             set
             {
-                if (_aiMode != value)
+                if (_aiLevel != value)
                 {
-                    _aiMode = value;
+                    _aiLevel = value;
                     OnPropertyChanged();
 
-                    if (_aiMode == "Bậc thầy")
+                    if (_aiLevel == "Chuyên nghiệp")
                     {
-                        TryInitializeMasterEngine();
+                        TryInitializeProfessionalEngine();
                     }
                     else
                     {
@@ -117,11 +117,11 @@ namespace Caro_game.ViewModels
 
         public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-        public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ")
+        public BoardViewModel(int rows, int columns, string firstPlayer, string aiLevel = "Dễ")
         {
             Rows = rows;
             Columns = columns;
-            AIMode = aiMode;
+            AILevel = aiLevel;
             CurrentPlayer = firstPlayer.StartsWith("X", StringComparison.OrdinalIgnoreCase) ? "X" : "O";
 
             _initialPlayer = CurrentPlayer;
@@ -138,9 +138,9 @@ namespace Caro_game.ViewModels
                 _cellLookup[(r, c)] = cell;
             }
 
-            if (AIMode == "Bậc thầy")
+            if (AILevel == "Chuyên nghiệp")
             {
-                TryInitializeMasterEngine();
+                TryInitializeProfessionalEngine();
             }
         }
 
@@ -155,7 +155,7 @@ namespace Caro_game.ViewModels
 
             cell.Value = movingPlayer;
 
-            if (!(IsAIEnabled && AIMode == "Bậc thầy"))
+            if (!(IsAIEnabled && AILevel == "Chuyên nghiệp"))
             {
                 ExpandBoardIfNeeded(originalRow, originalCol);
             }
@@ -211,7 +211,7 @@ namespace Caro_game.ViewModels
             // Nếu là lượt AI
             if (IsAIEnabled && CurrentPlayer == "O")
             {
-                if (AIMode == "Bậc thầy" && _engine != null)
+                if (AILevel == "Chuyên nghiệp" && _engine != null)
                 {
                     // Hiện thông báo "AI đang suy nghĩ..."
                     Application.Current.Dispatcher.Invoke(() =>
@@ -315,7 +315,7 @@ namespace Caro_game.ViewModels
 
             Cell? bestCell = null;
 
-            if (AIMode == "Dễ")
+            if (AILevel == "Dễ")
             {
                 var lastPlayerMove = Cells.LastOrDefault(c => c.Value == "X");
                 if (lastPlayerMove != null)
@@ -695,15 +695,15 @@ namespace Caro_game.ViewModels
             CurrentPlayer = _initialPlayer;
             IsPaused = false;
 
-            if (AIMode == "Bậc thầy")
+            if (AILevel == "Chuyên nghiệp")
             {
-                TryInitializeMasterEngine();
+                TryInitializeProfessionalEngine();
             }
         }
 
         public void PauseBoard() => IsPaused = true;
 
-        private void TryInitializeMasterEngine()
+        private void TryInitializeProfessionalEngine()
         {
             DisposeEngine();
 
@@ -714,8 +714,8 @@ namespace Caro_game.ViewModels
 
             if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
             {
-                NotifyMasterModeUnavailable("Không tìm thấy tệp AI cần thiết cho chế độ Bậc thầy.\n" +
-                                            $"Đường dẫn: {enginePath}");
+                NotifyProfessionalLevelUnavailable("Không tìm thấy tệp AI cần thiết cho cấp độ Chuyên nghiệp.\n" +
+                                                $"Đường dẫn: {enginePath}");
                 return;
             }
 
@@ -733,11 +733,11 @@ namespace Caro_game.ViewModels
                     if (!ok)
                     {
                         MessageBox.Show("AI không hỗ trợ kích thước bàn chữ nhật. Hãy chọn bàn vuông.",
-                            "Bậc thầy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            "Chuyên nghiệp", MessageBoxButton.OK, MessageBoxImage.Warning);
 
                         DisposeEngine();
                         IsAIEnabled = false;
-                        AIMode = "Khó";
+                        AILevel = "Khó";
                         return;
                     }
                 }
@@ -752,16 +752,16 @@ namespace Caro_game.ViewModels
             }
             catch (Exception ex)
             {
-                NotifyMasterModeUnavailable($"Không thể khởi động AI Bậc thầy.\nChi tiết: {ex}");
+                NotifyProfessionalLevelUnavailable($"Không thể khởi động AI Chuyên nghiệp.\nChi tiết: {ex}");
             }
         }
 
 
 
-        private void NotifyMasterModeUnavailable(string message)
+        private void NotifyProfessionalLevelUnavailable(string message)
         {
             IsAIEnabled = false;
-            AIMode = "Khó";
+            AILevel = "Khó";
 
             Application.Current.Dispatcher?.Invoke(() =>
             {

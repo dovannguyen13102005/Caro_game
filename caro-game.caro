@@ -3,7 +3,7 @@
   "Columns": 35,
   "CurrentPlayer": "X",
   "IsAIEnabled": true,
-  "AIMode": "Kh\u00F3",
+  "AILevel": "Kh\u00F3",
   "IsPaused": false,
   "Cells": [
     "",

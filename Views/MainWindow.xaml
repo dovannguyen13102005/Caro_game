@@ -39,13 +39,6 @@
                                     <TextBlock Text="Tùy chọn nhanh" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
                                     <Separator Margin="0,8"/>
 
-                                    <TextBlock Text="Bàn cờ: 30×30 (tự mở rộng khi đánh sát rìa)." 
-                                               Margin="0,6,0,0"
-                                               Foreground="{DynamicResource DefaultForeground}"/>
-                                    <TextBlock Text="Chế độ Bậc thầy dùng bàn 19×19 tiêu chuẩn." 
-                                               Margin="0,4,0,0"
-                                               Foreground="{DynamicResource DefaultForeground}"/>
-
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Người đi trước:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120" ItemsSource="{Binding Players}" SelectedItem="{Binding FirstPlayer}"/>
@@ -57,8 +50,8 @@
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Cấp độ:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120"
-                                                  ItemsSource="{Binding AIModes}"
-                                                  SelectedItem="{Binding SelectedAIMode}"/>
+                                                  ItemsSource="{Binding AILevels}"
+                                                  SelectedItem="{Binding SelectedAILevel}"/>
                                     </StackPanel>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
@@ -77,8 +70,6 @@
                                                Margin="0,10,0,0"
                                                FontWeight="Bold"
                                                Foreground="{DynamicResource AccentForegroundBrush}"/>
-
-                                    <CheckBox Content="Bật âm thanh" Margin="0,10,0,0" IsChecked="True" Foreground="{DynamicResource DefaultForeground}"/>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                                         <Button Content="Bắt đầu ván mới"
@@ -180,7 +171,7 @@
 
                                 <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc hoặc chéo." Foreground="{DynamicResource DefaultForeground}"/>
                                 <TextBlock Text="• Lượt đi: X luôn đi trước, O đi sau." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Bàn cờ: mặc định 30×30 (tự mở rộng ở rìa), chế độ Bậc thầy 19×19 chuẩn." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Bàn cờ mặc định 30×30." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
 
                                 <Separator Margin="0,8"/>
                                 <TextBlock Text="Các biến thể luật" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentForegroundBrush}" Margin="0,6,0,0"/>
@@ -223,16 +214,11 @@
                                 <ComboBox Width="160" ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}"/>
                             </StackPanel>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <TextBlock Text="Màu nhấn (Primary):" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
-                                <ComboBox Width="160" ItemsSource="{Binding PrimaryColors}" SelectedItem="{Binding SelectedPrimaryColor}"/>
-                            </StackPanel>
-
                             <CheckBox Content="Âm thanh" Margin="0,6,0,0"
                                       IsChecked="{Binding IsSoundEnabled}"
                                       Foreground="{DynamicResource DefaultForeground}"/>
 
-                            <Button Content="Lưu giao diện" Margin="0,16,0,0" Width="160"
+                            <Button Content="Lưu cài đặt" Margin="0,16,0,0" Width="160"
                                     Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
                                     Command="{Binding SaveSettingsCommand}"/>
                         </StackPanel>

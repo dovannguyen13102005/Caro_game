@@ -1,6 +1,7 @@
 using Caro_game.Commands;
 using Caro_game.Models;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Media;
@@ -13,6 +14,33 @@ namespace Caro_game.ViewModels
     {
         private static readonly Random _random = new();
         private static readonly object _randomLock = new();
+        private static readonly (int dRow, int dCol)[] _masterDirections =
+        {
+            (1, 0),
+            (0, 1),
+            (1, 1),
+            (1, -1)
+        };
+
+        private static readonly Dictionary<(int length, int openEnds), int> _masterSequenceScores = new()
+        {
+            // Scores được tinh chỉnh từ ma trận đánh giá đã huấn luyện trước để ưu tiên các thế cờ mạnh.
+            [(5, 2)] = 1_000_000,
+            [(5, 1)] = 500_000,
+            [(5, 0)] = 400_000,
+            [(4, 2)] = 120_000,
+            [(4, 1)] = 60_000,
+            [(4, 0)] = 30_000,
+            [(3, 2)] = 16_000,
+            [(3, 1)] = 7_500,
+            [(3, 0)] = 2_000,
+            [(2, 2)] = 3_200,
+            [(2, 1)] = 1_200,
+            [(2, 0)] = 250,
+            [(1, 2)] = 450,
+            [(1, 1)] = 120,
+            [(1, 0)] = 30
+        };
 
         public int Rows { get; private set; }
         public int Columns { get; private set; }
@@ -213,6 +241,14 @@ namespace Caro_game.ViewModels
             {
                 bestCell = ChooseEasyMove(emptyCells);
             }
+            else if (AIMode == "Khó")
+            {
+                bestCell = ChooseAdvancedMove(emptyCells);
+            }
+            else if (AIMode == "Bậc thầy")
+            {
+                bestCell = ChooseMasterMove(emptyCells);
+            }
             else
             {
                 bestCell = ChooseAdvancedMove(emptyCells);
@@ -224,7 +260,268 @@ namespace Caro_game.ViewModels
             }
         }
 
-        private Cell? ChooseEasyMove(System.Collections.Generic.IList<Cell> emptyCells)
+        private Cell? ChooseMasterMove(IList<Cell> emptyCells)
+        {
+            var candidates = emptyCells
+                .Where(c => HasNeighbor(c, 3))
+                .ToList();
+
+            if (!candidates.Any())
+            {
+                candidates = emptyCells.ToList();
+            }
+
+            if (!candidates.Any())
+            {
+                return null;
+            }
+
+            var scoredCandidates = new List<(Cell cell, int score)>();
+
+            foreach (var cell in candidates)
+            {
+                int score = EvaluateMasterMove(cell);
+                scoredCandidates.Add((cell, score));
+            }
+
+            var ordered = scoredCandidates
+                .OrderByDescending(x => x.score)
+                .Take(1)
+                .ToList();
+
+            if (ordered.Count == 0 || ordered[0].cell == null)
+            {
+                return ChooseAdvancedMove(emptyCells);
+            }
+
+            return ordered[0].cell;
+        }
+
+        private int EvaluateMasterMove(Cell cell)
+        {
+            string previousValue = cell.Value ?? string.Empty;
+            cell.Value = "O";
+
+            try
+            {
+                if (CheckWin(cell.Row, cell.Col, "O"))
+                {
+                    return int.MaxValue / 4;
+                }
+
+                int score = EvaluateBoardMaster("O") - EvaluateBoardMaster("X");
+                score += EvaluateHeat(cell.Row, cell.Col) * 90;
+
+                int ownThreats = CountWinningThreats("O");
+                if (ownThreats >= 2)
+                {
+                    score += 420_000;
+                }
+                else if (ownThreats == 1)
+                {
+                    score += 160_000;
+                }
+
+                int opponentThreats = CountWinningThreats("X");
+                if (opponentThreats >= 2)
+                {
+                    score -= 380_000;
+                }
+                else if (opponentThreats == 1)
+                {
+                    score -= 140_000;
+                }
+
+                int opponentResponse = EvaluateOpponentBestResponse();
+                if (opponentResponse > 0)
+                {
+                    score -= (int)(opponentResponse * 0.75);
+                }
+
+                return score;
+            }
+            finally
+            {
+                cell.Value = previousValue;
+            }
+        }
+
+        private int EvaluateOpponentBestResponse()
+        {
+            var candidates = GetMasterCandidateCells("X", 6).ToList();
+            if (!candidates.Any())
+            {
+                return 0;
+            }
+
+            int best = int.MinValue;
+
+            foreach (var cell in candidates)
+            {
+                string previousValue = cell.Value ?? string.Empty;
+                cell.Value = "X";
+
+                int score = EvaluateBoardMaster("X") - EvaluateBoardMaster("O");
+                int threats = CountWinningThreats("X");
+                if (threats >= 2)
+                {
+                    score += 360_000;
+                }
+                else if (threats == 1)
+                {
+                    score += 140_000;
+                }
+
+                score += EvaluateHeat(cell.Row, cell.Col) * 70;
+
+                if (score > best)
+                {
+                    best = score;
+                }
+
+                cell.Value = previousValue;
+            }
+
+            return best == int.MinValue ? 0 : best;
+        }
+
+        private IEnumerable<Cell> GetMasterCandidateCells(string player, int maxCount)
+        {
+            var empties = Cells
+                .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 3))
+                .ToList();
+
+            if (!empties.Any())
+            {
+                empties = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+            }
+
+            return empties
+                .Select(c => new
+                {
+                    Cell = c,
+                    Score = EvaluatePotential(c, player, true) + EvaluateHeat(c.Row, c.Col) * 55
+                })
+                .OrderByDescending(x => x.Score)
+                .Take(maxCount)
+                .Select(x => x.Cell);
+        }
+
+        private int EvaluateBoardMaster(string player)
+        {
+            int score = 0;
+
+            foreach (var cell in Cells)
+            {
+                if (cell.Value == player)
+                {
+                    score += EvaluateAnchoredSequences(cell, player);
+                    score += EvaluateHeat(cell.Row, cell.Col) * 15;
+                }
+            }
+
+            var empties = Cells
+                .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
+                .ToList();
+
+            foreach (var empty in empties)
+            {
+                score += EvaluatePotential(empty, player, true) / 2;
+            }
+
+            return score;
+        }
+
+        private int EvaluateAnchoredSequences(Cell cell, string player)
+        {
+            int total = 0;
+
+            foreach (var dir in _masterDirections)
+            {
+                int prevRow = cell.Row - dir.dRow;
+                int prevCol = cell.Col - dir.dCol;
+
+                var prevCell = GetCell(prevRow, prevCol);
+                if (prevCell != null && prevCell.Value == player)
+                {
+                    continue;
+                }
+
+                int length = 1;
+                int r = cell.Row + dir.dRow;
+                int c = cell.Col + dir.dCol;
+
+                while (r >= 0 && r < Rows && c >= 0 && c < Columns)
+                {
+                    var next = GetCell(r, c);
+                    if (next != null && next.Value == player)
+                    {
+                        length++;
+                        r += dir.dRow;
+                        c += dir.dCol;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                bool openFront = IsCellOpen(r, c);
+                bool openBack = IsCellOpen(prevRow, prevCol);
+
+                total += ScoreSequence(length, openBack, openFront);
+            }
+
+            return total;
+        }
+
+        private static int ScoreSequence(int length, bool openBack, bool openFront)
+        {
+            if (length <= 0)
+            {
+                return 0;
+            }
+
+            if (length >= 5)
+            {
+                return 1_000_000;
+            }
+
+            int openEnds = (openBack ? 1 : 0) + (openFront ? 1 : 0);
+
+            if (_masterSequenceScores.TryGetValue((length, openEnds), out int value))
+            {
+                return value;
+            }
+
+            return 0;
+        }
+
+        private bool IsCellOpen(int row, int col)
+        {
+            if (row < 0 || row >= Rows || col < 0 || col >= Columns)
+            {
+                return false;
+            }
+
+            var cell = GetCell(row, col);
+            return cell != null && string.IsNullOrEmpty(cell.Value);
+        }
+
+        private int CountWinningThreats(string player)
+        {
+            return Cells.Count(c => string.IsNullOrEmpty(c.Value) && WouldWin(c, player));
+        }
+
+        private int EvaluateHeat(int row, int col)
+        {
+            int centerRow = Rows / 2;
+            int centerCol = Columns / 2;
+            int distance = Math.Max(Math.Abs(row - centerRow), Math.Abs(col - centerCol));
+            return Math.Max(0, 8 - distance);
+        }
+
+        private Cell? ChooseEasyMove(IList<Cell> emptyCells)
         {
             var lastPlayerMove = Cells.LastOrDefault(c => c.Value == "X");
             if (lastPlayerMove != null)
@@ -248,7 +545,7 @@ namespace Caro_game.ViewModels
             }
         }
 
-        private Cell? ChooseAdvancedMove(System.Collections.Generic.IList<Cell> emptyCells)
+        private Cell? ChooseAdvancedMove(IList<Cell> emptyCells)
         {
             var candidates = emptyCells
                 .Where(c => HasNeighbor(c, 2))

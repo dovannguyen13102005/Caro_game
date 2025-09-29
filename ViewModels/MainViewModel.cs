@@ -220,7 +220,7 @@ namespace Caro_game.ViewModels
             RowOptions = new ObservableCollection<int> { 15, 20 };
             ColumnOptions = new ObservableCollection<int> { 18, 35 };
             Players = new ObservableCollection<string> { "X (Bạn)", "O" };
-            AIModes = new ObservableCollection<string> { "Dễ", "Khó" };
+            AIModes = new ObservableCollection<string> { "Dễ", "Khó", "Bậc thầy" };
 
             // Default
             SelectedRows = 20;

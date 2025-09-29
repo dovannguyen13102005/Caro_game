@@ -17,7 +17,7 @@ namespace Caro_game.Models
         public string Value
         {
             get => _value;
-            set { _value = value; OnPropertyChanged(); }
+            set => SetValue(value);
         }
 
         public bool IsWinningCell
@@ -35,6 +35,21 @@ namespace Caro_game.Models
             Value = string.Empty;
             IsWinningCell = false;
             ClickCommand = new RelayCommand(o => board.MakeMove(this));
+        }
+
+        public void SetValue(string value, bool notify = true)
+        {
+            if (_value == value)
+            {
+                return;
+            }
+
+            _value = value;
+
+            if (notify)
+            {
+                OnPropertyChanged(nameof(Value));
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -77,13 +77,13 @@ namespace Caro_game.ViewModels
 
             foreach (var cell in candidates)
             {
-                cell.Value = AiSymbol;
+                cell.SetValue(AiSymbol, notify: false);
 
                 int score = CheckWin(cell.Row, cell.Col, AiSymbol)
                     ? WinningScore
                     : Minimax(SearchDepth - 1, maximizingPlayer: false, lastMove: cell, alpha: int.MinValue + 1, beta: int.MaxValue - 1);
 
-                cell.Value = string.Empty;
+                cell.SetValue(string.Empty, notify: false);
 
                 if (score > bestScore)
                 {
@@ -143,9 +143,9 @@ namespace Caro_game.ViewModels
 
                 foreach (var move in candidates)
                 {
-                    move.Value = AiSymbol;
+                    move.SetValue(AiSymbol, notify: false);
                     int evaluation = Minimax(depth - 1, false, move, alpha, beta);
-                    move.Value = string.Empty;
+                    move.SetValue(string.Empty, notify: false);
 
                     if (evaluation > value)
                     {
@@ -164,9 +164,9 @@ namespace Caro_game.ViewModels
 
                 foreach (var move in candidates)
                 {
-                    move.Value = HumanSymbol;
+                    move.SetValue(HumanSymbol, notify: false);
                     int evaluation = Minimax(depth - 1, true, move, alpha, beta);
-                    move.Value = string.Empty;
+                    move.SetValue(string.Empty, notify: false);
 
                     if (evaluation < value)
                     {

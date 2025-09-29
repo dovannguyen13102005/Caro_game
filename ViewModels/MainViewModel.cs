@@ -266,6 +266,7 @@ namespace Caro_game.ViewModels
         public ICommand StartGameCommand { get; }
         public ICommand TogglePauseCommand { get; }
         public ICommand SaveGameCommand { get; }
+        public ICommand LoadGameCommand { get; }
         public ICommand SaveSettingsCommand { get; }
 
         public MainViewModel()
@@ -302,6 +303,7 @@ namespace Caro_game.ViewModels
             StartGameCommand = new RelayCommand(StartGame);
             TogglePauseCommand = new RelayCommand(_ => TogglePause(), _ => Board != null && IsGameActive);
             SaveGameCommand = new RelayCommand(_ => SaveCurrentGame(), _ => Board != null);
+            LoadGameCommand = new RelayCommand(_ => LoadSavedGame());
             SaveSettingsCommand = new RelayCommand(_ => SaveSettings());
         }
 
@@ -484,6 +486,130 @@ namespace Caro_game.ViewModels
                 File.WriteAllText(dialog.FileName, json);
                 MessageBox.Show("Ván đấu đã được lưu!", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+        }
+
+        private void LoadSavedGame()
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "Caro Save|*.json"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    var json = File.ReadAllText(dialog.FileName);
+                    var state = JsonSerializer.Deserialize<GameState>(json);
+
+                    if (state == null)
+                    {
+                        throw new InvalidOperationException("Không đọc được dữ liệu từ tệp đã chọn.");
+                    }
+
+                    ApplyGameState(state);
+
+                    MessageBox.Show("Đã tải ván đấu thành công!", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Không thể mở tệp đã lưu.\nChi tiết: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void ApplyGameState(GameState state)
+        {
+            StopTimer();
+
+            Board = null;
+            IsGameActive = false;
+            IsGamePaused = false;
+
+            SelectedRows = state.Rows;
+            SelectedColumns = state.Columns;
+            FirstPlayer = state.FirstPlayer == "O" ? "O" : "X (Bạn)";
+
+            IsAIEnabled = state.IsAIEnabled;
+            var targetMode = string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!;
+            SelectedAIMode = targetMode;
+
+            bool masterModeRestored = state.IsAIEnabled && targetMode == "Bậc thầy";
+            var boardAIMode = masterModeRestored ? "Khó" : targetMode;
+
+            var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode)
+            {
+                IsAIEnabled = masterModeRestored ? false : state.IsAIEnabled
+            };
+
+            board.LoadFromState(state);
+
+            Board = board;
+
+            if (masterModeRestored)
+            {
+                SelectedAIMode = "Khó";
+                IsAIEnabled = false;
+                MessageBox.Show("Không thể tiếp tục chế độ AI Bậc thầy cho ván đã lưu. Chế độ đã được chuyển về Khó.",
+                    "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+
+            var option = EnsureTimeOption(state.TimeLimitMinutes);
+            SelectedTimeOption = option;
+
+            _configuredDuration = state.TimeLimitMinutes > 0
+                ? TimeSpan.FromMinutes(state.TimeLimitMinutes)
+                : TimeSpan.Zero;
+
+            if (state.TimeLimitMinutes > 0)
+            {
+                RemainingTime = state.RemainingSeconds.HasValue
+                    ? TimeSpan.FromSeconds(Math.Max(0, state.RemainingSeconds.Value))
+                    : _configuredDuration;
+            }
+            else
+            {
+                RemainingTime = TimeSpan.Zero;
+            }
+
+            bool hasWinner = state.Cells?.Any(c => c.IsWinningCell) == true;
+            IsGameActive = !hasWinner;
+            IsGamePaused = state.IsPaused && !hasWinner;
+
+            if (Board != null)
+            {
+                Board.IsPaused = IsGamePaused || hasWinner;
+            }
+
+            if (_configuredDuration > TimeSpan.Zero && !IsGamePaused && !hasWinner)
+            {
+                _gameTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(1)
+                };
+                _gameTimer.Tick += OnGameTimerTick;
+                _gameTimer.Start();
+            }
+
+            StatusMessage = hasWinner
+                ? "Ván đấu đã kết thúc."
+                : IsGamePaused ? "Đang tạm dừng" : "Đang chơi";
+
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        private TimeOption EnsureTimeOption(int minutes)
+        {
+            var existing = TimeOptions.FirstOrDefault(t => t.Minutes == minutes);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var label = minutes > 0 ? $"{minutes} phút" : "Không giới hạn";
+            var option = new TimeOption(minutes, label + " (tải)");
+            TimeOptions.Add(option);
+            return option;
         }
 
         private void SaveSettings()

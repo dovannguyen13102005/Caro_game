@@ -11,6 +11,7 @@ namespace Caro_game.Models
         public string? CurrentPlayer { get; set; }
         public bool IsAIEnabled { get; set; }
         public string? AIMode { get; set; }
+        public string? MapType { get; set; }
         public int TimeLimitMinutes { get; set; }
         public int? RemainingSeconds { get; set; }
         public bool IsPaused { get; set; }

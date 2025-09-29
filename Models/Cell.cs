@@ -10,6 +10,7 @@ namespace Caro_game.Models
     {
         private string _value;
         private bool _isWinningCell;
+        private bool _isBlocked;
 
         public int Row { get; set; }
         public int Col { get; set; }
@@ -17,14 +18,46 @@ namespace Caro_game.Models
         public string Value
         {
             get => _value;
-            set { _value = value; OnPropertyChanged(); }
+            set
+            {
+                if (_value != value)
+                {
+                    _value = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayValue));
+                }
+            }
         }
 
         public bool IsWinningCell
         {
             get => _isWinningCell;
-            set { _isWinningCell = value; OnPropertyChanged(); }
+            set
+            {
+                if (_isWinningCell != value)
+                {
+                    _isWinningCell = value;
+                    OnPropertyChanged();
+                }
+            }
         }
+
+        public bool IsBlocked
+        {
+            get => _isBlocked;
+            set
+            {
+                if (_isBlocked != value)
+                {
+                    _isBlocked = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayValue));
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
+        }
+
+        public string DisplayValue => IsBlocked ? "🚫" : Value;
 
         public ICommand ClickCommand { get; set; }
 
@@ -34,7 +67,8 @@ namespace Caro_game.Models
             Col = col;
             Value = string.Empty;
             IsWinningCell = false;
-            ClickCommand = new RelayCommand(o => board.MakeMove(this));
+            IsBlocked = false;
+            ClickCommand = new RelayCommand(_ => board.MakeMove(this), _ => board.CanMakeMove(this));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

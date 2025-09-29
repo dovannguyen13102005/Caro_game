@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 
 namespace Caro_game.ViewModels
 {
@@ -47,8 +48,24 @@ namespace Caro_game.ViewModels
         private readonly string _initialPlayer;
         private readonly int _initialRows;
         private readonly int _initialColumns;
+        private readonly string _initialMapType;
+        private readonly Random _random = new();
+        private HashSet<(int Row, int Col)> _blockedPositions = new();
         private string _currentPlayer;
         private EngineClient? _engine;
+        private string _mapType = MapTypes.Default;
+        public string MapType
+        {
+            get => _mapType;
+            private set
+            {
+                if (_mapType != value)
+                {
+                    _mapType = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         public string CurrentPlayer
         {
@@ -111,6 +128,7 @@ namespace Caro_game.ViewModels
                 {
                     _isPaused = value;
                     OnPropertyChanged();
+                    CommandManager.InvalidateRequerySuggested();
                 }
             }
         }
@@ -119,7 +137,7 @@ namespace Caro_game.ViewModels
 
         public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-        public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ")
+        public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string mapType = MapTypes.Default)
         {
             _initialRows = rows;
             _initialColumns = columns;
@@ -127,6 +145,8 @@ namespace Caro_game.ViewModels
             CurrentPlayer = firstPlayer.StartsWith("X", StringComparison.OrdinalIgnoreCase) ? "X" : "O";
 
             _initialPlayer = CurrentPlayer;
+            _initialMapType = mapType;
+            MapType = mapType;
             Cells = new ObservableCollection<Cell>();
             _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
             _candidatePositions = new HashSet<(int, int)>();
@@ -139,9 +159,12 @@ namespace Caro_game.ViewModels
             }
         }
 
+        public bool CanMakeMove(Cell cell)
+            => !IsPaused && !cell.IsBlocked && string.IsNullOrEmpty(cell.Value);
+
         public void MakeMove(Cell cell)
         {
-            if (IsPaused || !string.IsNullOrEmpty(cell.Value))
+            if (!CanMakeMove(cell))
                 return;
 
             var movingPlayer = CurrentPlayer;
@@ -149,6 +172,7 @@ namespace Caro_game.ViewModels
 
             ExpandBoardIfNeeded(cell.Row, cell.Col);
             UpdateCandidatePositions(cell.Row, cell.Col);
+            CommandManager.InvalidateRequerySuggested();
 
             // Kiểm tra thắng
             if (CheckWin(cell.Row, cell.Col, movingPlayer))
@@ -181,7 +205,7 @@ namespace Caro_game.ViewModels
             }
 
             // 🟢 Check hòa: nếu không còn ô trống
-            if (Cells.All(c => !string.IsNullOrEmpty(c.Value)))
+            if (Cells.Where(c => !c.IsBlocked).All(c => !string.IsNullOrEmpty(c.Value)))
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
@@ -255,6 +279,7 @@ namespace Caro_game.ViewModels
                 {
                     var neighbors = Cells.Where(c =>
                         string.IsNullOrEmpty(c.Value) &&
+                        !c.IsBlocked &&
                         Math.Abs(c.Row - lastPlayerMove.Row) <= 1 &&
                         Math.Abs(c.Col - lastPlayerMove.Col) <= 1).ToList();
 
@@ -266,7 +291,7 @@ namespace Caro_game.ViewModels
 
                 if (bestCell == null)
                 {
-                    var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                    var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value) && !c.IsBlocked).ToList();
                     if (emptyCells.Any())
                         bestCell = emptyCells[new Random().Next(emptyCells.Count)];
                 }
@@ -274,11 +299,11 @@ namespace Caro_game.ViewModels
             else // Khó
             {
                 var candidates = Cells
-                    .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
+                    .Where(c => string.IsNullOrEmpty(c.Value) && !c.IsBlocked && HasNeighbor(c, 2))
                     .ToList();
 
                 if (!candidates.Any())
-                    candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                    candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value) && !c.IsBlocked).ToList();
 
                 int bestScore = int.MinValue;
 
@@ -324,7 +349,7 @@ namespace Caro_game.ViewModels
                     int r = row + dr;
                     int c = col + dc;
 
-                    if (_cellLookup.TryGetValue((r, c), out var neighbor))
+                    if (_cellLookup.TryGetValue((r, c), out var neighbor) && !neighbor.IsBlocked)
                     {
                         yield return neighbor;
                     }
@@ -402,13 +427,23 @@ namespace Caro_game.ViewModels
 
             while (r >= 0 && r < Rows && c >= 0 && c < Columns)
             {
-                if (_cellLookup.TryGetValue((r, c), out var neighbor) && neighbor.Value == player)
+                if (_cellLookup.TryGetValue((r, c), out var neighbor))
                 {
-                    count++;
-                    r += dRow;
-                    c += dCol;
+                    if (neighbor.IsBlocked)
+                    {
+                        break;
+                    }
+
+                    if (neighbor.Value == player)
+                    {
+                        count++;
+                        r += dRow;
+                        c += dCol;
+                        continue;
+                    }
                 }
-                else break;
+
+                break;
             }
             return count;
         }
@@ -459,19 +494,30 @@ namespace Caro_game.ViewModels
 
             while (r >= 0 && r < Rows && c >= 0 && c < Columns)
             {
-                if (_cellLookup.TryGetValue((r, c), out var cell) && cell.Value == player)
+                if (_cellLookup.TryGetValue((r, c), out var cell))
                 {
-                    list.Add(cell);
-                    r += dRow;
-                    c += dCol;
+                    if (cell.IsBlocked)
+                    {
+                        break;
+                    }
+
+                    if (cell.Value == player)
+                    {
+                        list.Add(cell);
+                        r += dRow;
+                        c += dCol;
+                        continue;
+                    }
                 }
-                else break;
+
+                break;
             }
             return list;
         }
 
         public void ResetBoard()
         {
+            MapType = _initialMapType;
             InitializeBoard(_initialRows, _initialColumns);
 
             CurrentPlayer = _initialPlayer;
@@ -485,7 +531,22 @@ namespace Caro_game.ViewModels
 
         public void ApplyState(GameState state)
         {
-            InitializeBoard(state.Rows, state.Columns);
+            MapType = string.IsNullOrWhiteSpace(state.MapType) ? _initialMapType : state.MapType!;
+
+            HashSet<(int Row, int Col)> blockedFromState;
+            if (state.Cells != null)
+            {
+                blockedFromState = state.Cells
+                    .Where(c => c.IsBlocked)
+                    .Select(c => (c.Row, c.Col))
+                    .ToHashSet();
+            }
+            else
+            {
+                blockedFromState = new HashSet<(int, int)>();
+            }
+
+            InitializeBoard(state.Rows, state.Columns, blockedFromState);
 
             if (state.Cells != null)
             {
@@ -493,6 +554,7 @@ namespace Caro_game.ViewModels
                 {
                     if (_cellLookup.TryGetValue((cellState.Row, cellState.Col), out var cell))
                     {
+                        cell.IsBlocked = blockedFromState.Contains((cell.Row, cell.Col));
                         cell.Value = cellState.Value ?? string.Empty;
                         cell.IsWinningCell = cellState.IsWinningCell;
 
@@ -506,6 +568,7 @@ namespace Caro_game.ViewModels
 
             CurrentPlayer = string.IsNullOrWhiteSpace(state.CurrentPlayer) ? _initialPlayer : state.CurrentPlayer!;
             IsPaused = state.IsPaused;
+            CommandManager.InvalidateRequerySuggested();
         }
 
         public void PauseBoard() => IsPaused = true;
@@ -582,7 +645,7 @@ namespace Caro_game.ViewModels
             _engine = null;
         }
 
-        private void InitializeBoard(int rows, int columns)
+        private void InitializeBoard(int rows, int columns, HashSet<(int Row, int Col)>? blockedOverride = null)
         {
             Rows = rows;
             Columns = columns;
@@ -590,13 +653,45 @@ namespace Caro_game.ViewModels
             Cells.Clear();
             _cellLookup.Clear();
 
+            _blockedPositions = blockedOverride != null
+                ? new HashSet<(int, int)>(blockedOverride)
+                : new HashSet<(int, int)>();
+
             for (int r = 0; r < rows; r++)
             {
                 for (int c = 0; c < columns; c++)
                 {
                     var cell = new Cell(r, c, this);
+
+                    bool isBlocked;
+                    if (blockedOverride != null)
+                    {
+                        isBlocked = _blockedPositions.Contains((r, c));
+                    }
+                    else
+                    {
+                        isBlocked = ShouldBlockCell(r, c, rows, columns);
+                        if (isBlocked)
+                        {
+                            _blockedPositions.Add((r, c));
+                        }
+                    }
+
+                    cell.IsBlocked = isBlocked;
                     Cells.Add(cell);
                     _cellLookup[(r, c)] = cell;
+                }
+            }
+
+            if (MapType == MapTypes.Forbidden && blockedOverride == null && _blockedPositions.Count == 0)
+            {
+                var fallbackRow = Math.Min(rows - 1, Math.Max(0, rows / 3));
+                var fallbackCol = Math.Min(columns - 1, Math.Max(0, columns / 3));
+
+                if (_cellLookup.TryGetValue((fallbackRow, fallbackCol), out var fallbackCell))
+                {
+                    fallbackCell.IsBlocked = true;
+                    _blockedPositions.Add((fallbackRow, fallbackCol));
                 }
             }
 
@@ -604,6 +699,8 @@ namespace Caro_game.ViewModels
             {
                 _candidatePositions.Clear();
             }
+
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private void ExpandBoardIfNeeded(int row, int col)
@@ -629,6 +726,25 @@ namespace Caro_game.ViewModels
             ExpandBoard(addTop, addBottom, addLeft, addRight);
         }
 
+        private bool ShouldBlockCell(int row, int col, int totalRows, int totalColumns)
+        {
+            if (MapType != MapTypes.Forbidden)
+            {
+                return false;
+            }
+
+            int centerRow = totalRows / 2;
+            int centerCol = totalColumns / 2;
+
+            if (Math.Abs(row - centerRow) <= 1 && Math.Abs(col - centerCol) <= 1)
+            {
+                return false;
+            }
+
+            const double obstacleDensity = 0.06;
+            return _random.NextDouble() < obstacleDensity;
+        }
+
         private void ExpandBoard(int addTop, int addBottom, int addLeft, int addRight)
         {
             var existingCells = Cells.ToList();
@@ -637,6 +753,18 @@ namespace Caro_game.ViewModels
             {
                 existing.Row += addTop;
                 existing.Col += addLeft;
+            }
+
+            if (MapType == MapTypes.Forbidden)
+            {
+                _blockedPositions = existingCells
+                    .Where(c => c.IsBlocked)
+                    .Select(c => (c.Row, c.Col))
+                    .ToHashSet();
+            }
+            else
+            {
+                _blockedPositions = new HashSet<(int, int)>();
             }
 
             HashSet<(int Row, int Col)> candidateSnapshot;
@@ -663,11 +791,18 @@ namespace Caro_game.ViewModels
                     if (!cellMap.TryGetValue((r, c), out var cell))
                     {
                         cell = new Cell(r, c, this);
+                        bool isBlocked = ShouldBlockCell(r, c, Rows, Columns);
+                        cell.IsBlocked = isBlocked;
+                        if (isBlocked)
+                        {
+                            _blockedPositions.Add((r, c));
+                        }
                     }
                     else
                     {
                         cell.Row = r;
                         cell.Col = c;
+                        cell.IsBlocked = _blockedPositions.Contains((r, c));
                     }
 
                     Cells.Add(cell);
@@ -686,12 +821,15 @@ namespace Caro_game.ViewModels
                     if (shifted.Row >= 0 && shifted.Row < Rows &&
                         shifted.Col >= 0 && shifted.Col < Columns &&
                         _cellLookup.TryGetValue((shifted.Row, shifted.Col), out var candidateCell) &&
-                        string.IsNullOrEmpty(candidateCell.Value))
+                        string.IsNullOrEmpty(candidateCell.Value) &&
+                        !candidateCell.IsBlocked)
                     {
                         _candidatePositions.Add((shifted.Row, shifted.Col));
                     }
                 }
             }
+
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 }

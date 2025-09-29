@@ -6,5 +6,6 @@ namespace Caro_game.Models
         public int Col { get; set; }
         public string? Value { get; set; }
         public bool IsWinningCell { get; set; }
+        public bool IsBlocked { get; set; }
     }
 }

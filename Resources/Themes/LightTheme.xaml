@@ -13,4 +13,5 @@
     <SolidColorBrush x:Key="AccentForegroundBrush" Color="#1E3A8A"/>
     <SolidColorBrush x:Key="MutedForegroundBrush" Color="#4B5563"/>
     <SolidColorBrush x:Key="WinningCellBrush" Color="#F59E0B"/>
+    <SolidColorBrush x:Key="BlockedCellBrush" Color="#E5E7EB"/>
 </ResourceDictionary>

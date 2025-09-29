@@ -26,6 +26,7 @@ namespace Caro_game.ViewModels
         private BoardViewModel? _board;
         private bool _isAIEnabled;
         private string _selectedAIMode;
+        private string _selectedMapType;
         private bool _suppressBoardSizeAutoUpdate;
         private TimeOption _selectedTimeOption;
         private string _selectedTheme;
@@ -43,6 +44,7 @@ namespace Caro_game.ViewModels
         public ObservableCollection<string> Players { get; }
         public ObservableCollection<string> AIModes { get; }
         public ObservableCollection<TimeOption> TimeOptions { get; }
+        public ObservableCollection<string> MapTypeOptions { get; }
 
         private int _selectedRows;
         public int SelectedRows
@@ -138,6 +140,11 @@ namespace Caro_game.ViewModels
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(PlannedBoardSize));
                     OnPropertyChanged(nameof(CurrentBoardSizeDisplay));
+
+                    if (_selectedAIMode == "Bậc thầy" && SelectedMapType != MapTypes.Default)
+                    {
+                        SelectedMapType = MapTypes.Default;
+                    }
                 }
             }
         }
@@ -147,6 +154,26 @@ namespace Caro_game.ViewModels
         public string CurrentBoardSizeDisplay => Board != null
             ? $"{Board.Rows} × {Board.Columns}"
             : PlannedBoardSize;
+
+        public string SelectedMapType
+        {
+            get => _selectedMapType;
+            set
+            {
+                var normalized = string.IsNullOrWhiteSpace(value) ? MapTypes.Default : value;
+
+                if (SelectedAIMode == "Bậc thầy")
+                {
+                    normalized = MapTypes.Default;
+                }
+
+                if (_selectedMapType != normalized)
+                {
+                    _selectedMapType = normalized;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         // --- Cài đặt giao diện ---
         public ObservableCollection<string> Themes { get; } =
@@ -288,12 +315,14 @@ namespace Caro_game.ViewModels
                 new TimeOption(45, "45 phút"),
                 new TimeOption(60, "60 phút")
             };
+            MapTypeOptions = new ObservableCollection<string> { MapTypes.Default, MapTypes.Forbidden };
 
             SelectedRows = 30;
             SelectedColumns = 30;
             FirstPlayer = "X (Bạn)";
             IsAIEnabled = true;
             SelectedAIMode = "Khó";
+            SelectedMapType = MapTypes.Default;
 
             SelectedTheme = DefaultDarkThemeLabel;
             SelectedPrimaryColor = "Xanh dương";
@@ -314,7 +343,7 @@ namespace Caro_game.ViewModels
             SelectedRows = rows;
             SelectedColumns = cols;
 
-            var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode)
+            var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode, SelectedMapType)
             {
                 IsAIEnabled = IsAIEnabled
             };
@@ -451,6 +480,7 @@ namespace Caro_game.ViewModels
                     CurrentPlayer = Board.CurrentPlayer,
                     IsAIEnabled = Board.IsAIEnabled,
                     AIMode = Board.AIMode,
+                    MapType = Board.MapType,
                     TimeLimitMinutes = SelectedTimeOption.Minutes,
                     RemainingSeconds = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTime.TotalSeconds) : null,
                     IsPaused = IsGamePaused,
@@ -460,7 +490,8 @@ namespace Caro_game.ViewModels
                         Row = c.Row,
                         Col = c.Col,
                         Value = c.Value,
-                        IsWinningCell = c.IsWinningCell
+                        IsWinningCell = c.IsWinningCell,
+                        IsBlocked = c.IsBlocked
                     }).ToList()
                 };
 
@@ -615,7 +646,19 @@ namespace Caro_game.ViewModels
                 }
 
                 var firstPlayerForBoard = string.IsNullOrWhiteSpace(state.FirstPlayer) ? "X" : state.FirstPlayer!;
-                var board = new BoardViewModel(state.Rows, state.Columns, firstPlayerForBoard, aiMode)
+                var mapType = string.IsNullOrWhiteSpace(state.MapType) ? MapTypes.Default : state.MapType!;
+
+                if (aiMode == "Bậc thầy" && mapType != MapTypes.Default)
+                {
+                    mapType = MapTypes.Default;
+                }
+
+                if (!MapTypeOptions.Contains(mapType))
+                {
+                    MapTypeOptions.Add(mapType);
+                }
+
+                var board = new BoardViewModel(state.Rows, state.Columns, firstPlayerForBoard, aiMode, mapType)
                 {
                     IsAIEnabled = aiEnabled && aiMode != "Bậc thầy"
                 };
@@ -633,6 +676,7 @@ namespace Caro_game.ViewModels
 
                 FirstPlayer = firstPlayerForBoard.StartsWith("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X (Bạn)";
                 IsAIEnabled = board.IsAIEnabled;
+                SelectedMapType = mapType;
 
                 var matchingTime = TimeOptions.FirstOrDefault(t => t.Minutes == state.TimeLimitMinutes);
                 if (matchingTime == null)

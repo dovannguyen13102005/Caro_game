@@ -37,40 +37,9 @@ namespace Caro_game.ViewModels
         private DispatcherTimer? _gameTimer;
         private TimeSpan _configuredDuration = TimeSpan.Zero;
 
-        // Thuộc tính cho cấu hình bảng
-        public ObservableCollection<int> RowOptions { get; }
-        public ObservableCollection<int> ColumnOptions { get; }
         public ObservableCollection<string> Players { get; }
         public ObservableCollection<string> AIModes { get; }
         public ObservableCollection<TimeOption> TimeOptions { get; }
-
-        private int _selectedRows;
-        public int SelectedRows
-        {
-            get => _selectedRows;
-            set
-            {
-                if (_selectedRows != value)
-                {
-                    _selectedRows = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        private int _selectedColumns;
-        public int SelectedColumns
-        {
-            get => _selectedColumns;
-            set
-            {
-                if (_selectedColumns != value)
-                {
-                    _selectedColumns = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
 
         public string FirstPlayer
         {
@@ -271,8 +240,6 @@ namespace Caro_game.ViewModels
 
         public MainViewModel()
         {
-            RowOptions = new ObservableCollection<int> { 15, 20, 25, 30, 40, 50, 75, 100 };
-            ColumnOptions = new ObservableCollection<int> { 15, 20, 25, 30, 40, 50, 75, 100 };
             Players = new ObservableCollection<string> { "X (Bạn)", "O" };
             AIModes = new ObservableCollection<string> { "Dễ", "Khó", "Bậc thầy" };
             TimeOptions = new ObservableCollection<TimeOption>
@@ -287,8 +254,6 @@ namespace Caro_game.ViewModels
                 new TimeOption(60, "60 phút")
             };
 
-            SelectedRows = 40;
-            SelectedColumns = 40;
             FirstPlayer = "X (Bạn)";
             IsAIEnabled = true;
             SelectedAIMode = "Khó";
@@ -309,28 +274,10 @@ namespace Caro_game.ViewModels
 
         private void StartGame(object? parameter)
         {
-            int rows = SelectedRows;
-            int cols = SelectedColumns;
-
-            if (IsAIEnabled && SelectedAIMode == "Bậc thầy")
-            {
-                // Các kích thước Rapfi hỗ trợ
-                int[] supported = { 15, 20, 30 };
-
-                // Nếu người dùng chọn kích thước không hợp lệ → tự động set về 20×20
-                if (!supported.Contains(rows) || rows != cols)
-                {
-                    rows = 20;
-                    cols = 20;
-                    MessageBox.Show(
-                        "AI Bậc thầy chỉ hỗ trợ các bàn 15×15, 20×20 hoặc 30×30.\n" +
-                        "Kích thước đã được đặt về 20×20.",
-                        "Thông báo",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information
-                    );
-                }
-            }
+            bool isProfessionalMode = SelectedAIMode == "Bậc thầy";
+            int baseSize = isProfessionalMode ? 19 : 30;
+            int rows = baseSize;
+            int cols = baseSize;
 
             var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode)
             {
@@ -526,8 +473,6 @@ namespace Caro_game.ViewModels
             IsGameActive = false;
             IsGamePaused = false;
 
-            SelectedRows = state.Rows;
-            SelectedColumns = state.Columns;
             FirstPlayer = state.FirstPlayer == "O" ? "O" : "X (Bạn)";
 
             IsAIEnabled = state.IsAIEnabled;

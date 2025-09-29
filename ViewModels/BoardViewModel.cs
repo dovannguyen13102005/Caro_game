@@ -12,8 +12,33 @@ namespace Caro_game.ViewModels
 {
     public class BoardViewModel : BaseViewModel
     {
-        public int Rows { get; }
-        public int Columns { get; }
+        private int _rows;
+        public int Rows
+        {
+            get => _rows;
+            private set
+            {
+                if (_rows != value)
+                {
+                    _rows = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private int _columns;
+        public int Columns
+        {
+            get => _columns;
+            private set
+            {
+                if (_columns != value)
+                {
+                    _columns = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
         public ObservableCollection<Cell> Cells { get; }
 
         private readonly Dictionary<(int Row, int Col), Cell> _cellLookup;
@@ -125,7 +150,16 @@ namespace Caro_game.ViewModels
                 return;
 
             var movingPlayer = CurrentPlayer;
+            int originalRow = cell.Row;
+            int originalCol = cell.Col;
+
             cell.Value = movingPlayer;
+
+            if (!(IsAIEnabled && AIMode == "Bậc thầy"))
+            {
+                ExpandBoardIfNeeded(originalRow, originalCol);
+            }
+
             UpdateCandidatePositions(cell.Row, cell.Col);
 
             // Kiểm tra thắng
@@ -378,6 +412,151 @@ namespace Caro_game.ViewModels
                         _candidatePositions.Add((neighbor.Row, neighbor.Col));
                     }
                 }
+            }
+        }
+
+        private void ExpandBoardIfNeeded(int originalRow, int originalCol)
+        {
+            int previousRows = Rows;
+            int previousCols = Columns;
+
+            bool addTop = originalRow == 0;
+            bool addBottom = originalRow == previousRows - 1;
+            bool addLeft = originalCol == 0;
+            bool addRight = originalCol == previousCols - 1;
+
+            bool expanded = addTop || addBottom || addLeft || addRight;
+
+            if (!expanded)
+            {
+                return;
+            }
+
+            if (addTop)
+            {
+                AddRowTop();
+            }
+
+            if (addBottom)
+            {
+                AddRowBottom();
+            }
+
+            if (addLeft)
+            {
+                AddColumnLeft();
+            }
+
+            if (addRight)
+            {
+                AddColumnRight();
+            }
+
+            RebuildCellsCollection();
+        }
+
+        private void AddRowTop()
+        {
+            ShiftAllCells(1, 0);
+
+            int currentColumns = Columns;
+            for (int col = 0; col < currentColumns; col++)
+            {
+                var cell = new Cell(0, col, this);
+                _cellLookup[(0, col)] = cell;
+            }
+
+            Rows = Rows + 1;
+        }
+
+        private void AddRowBottom()
+        {
+            int newRowIndex = Rows;
+            for (int col = 0; col < Columns; col++)
+            {
+                var cell = new Cell(newRowIndex, col, this);
+                _cellLookup[(newRowIndex, col)] = cell;
+            }
+
+            Rows = Rows + 1;
+        }
+
+        private void AddColumnLeft()
+        {
+            ShiftAllCells(0, 1);
+
+            int currentRows = Rows;
+            for (int row = 0; row < currentRows; row++)
+            {
+                var cell = new Cell(row, 0, this);
+                _cellLookup[(row, 0)] = cell;
+            }
+
+            Columns = Columns + 1;
+        }
+
+        private void AddColumnRight()
+        {
+            int newColumnIndex = Columns;
+            for (int row = 0; row < Rows; row++)
+            {
+                var cell = new Cell(row, newColumnIndex, this);
+                _cellLookup[(row, newColumnIndex)] = cell;
+            }
+
+            Columns = Columns + 1;
+        }
+
+        private void ShiftAllCells(int rowDelta, int colDelta)
+        {
+            if (rowDelta == 0 && colDelta == 0)
+            {
+                return;
+            }
+
+            var shiftedLookup = new Dictionary<(int Row, int Col), Cell>(_cellLookup.Count);
+
+            foreach (var cell in _cellLookup.Values)
+            {
+                cell.Row += rowDelta;
+                cell.Col += colDelta;
+                shiftedLookup[(cell.Row, cell.Col)] = cell;
+            }
+
+            _cellLookup.Clear();
+            foreach (var kvp in shiftedLookup)
+            {
+                _cellLookup[kvp.Key] = kvp.Value;
+            }
+
+            if (_candidatePositions.Count > 0)
+            {
+                var shiftedCandidates = new HashSet<(int Row, int Col)>(_candidatePositions.Count);
+                foreach (var (row, col) in _candidatePositions)
+                {
+                    shiftedCandidates.Add((row + rowDelta, col + colDelta));
+                }
+
+                _candidatePositions.Clear();
+                foreach (var pos in shiftedCandidates)
+                {
+                    _candidatePositions.Add(pos);
+                }
+            }
+        }
+
+        private void RebuildCellsCollection()
+        {
+            var ordered = _cellLookup.Values
+                .OrderBy(c => c.Row)
+                .ThenBy(c => c.Col)
+                .ToList();
+
+            Cells.Clear();
+
+            foreach (var cell in ordered)
+            {
+                Cells.Add(cell);
             }
         }
 

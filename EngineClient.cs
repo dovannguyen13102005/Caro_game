@@ -12,13 +12,14 @@ namespace Caro_game
         private StreamReader? _output;
         private readonly string _logFile;
 
-        public EngineClient(string enginePath)
+        public EngineClient(string enginePath, string? engineArguments = null)
         {
             _logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "engine_log.txt");
 
             var psi = new ProcessStartInfo
             {
                 FileName = enginePath,
+                Arguments = string.IsNullOrWhiteSpace(engineArguments) ? string.Empty : engineArguments,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -31,7 +32,14 @@ namespace Caro_game
             _input = _process.StandardInput;
             _output = _process.StandardOutput;
 
-            Log($"[Init] Engine started: {enginePath}");
+            if (!string.IsNullOrWhiteSpace(engineArguments))
+            {
+                Log($"[Init] Engine started: {enginePath} {engineArguments}");
+            }
+            else
+            {
+                Log($"[Init] Engine started: {enginePath}");
+            }
 
             // gửi timeout mặc định
             Send("INFO timeout_turn 1000");

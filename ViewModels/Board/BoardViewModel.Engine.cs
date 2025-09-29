@@ -14,22 +14,44 @@ public partial class BoardViewModel
         DisposeEngine();
 
         var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        var engineFile = GameRule == GameRule.Renju
-            ? "pbrain-Yixin2018.exe"
-            : "pbrain-rapfi-windows-avx2.exe";
+        var engineDirectory = Path.Combine(baseDirectory, "AI");
+        var engineCandidates = new[]
+        {
+            Path.Combine(engineDirectory, "pbrain-rapfi-windows-avx2.exe"),
+            Path.Combine(engineDirectory, "pbrain-rapfi-windows-sse.exe"),
+            Path.Combine(engineDirectory, "pbrain-rapfi.exe")
+        };
 
-        var enginePath = Path.Combine(baseDirectory, "AI", engineFile);
+        var enginePath = engineCandidates.FirstOrDefault(File.Exists);
 
-        if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
+        if (string.IsNullOrWhiteSpace(enginePath))
         {
             NotifyProfessionalModeUnavailable("Không tìm thấy tệp AI cần thiết cho cấp độ Chuyên nghiệp.\n" +
-                                              $"Đường dẫn: {enginePath}");
+                                              string.Join("\n", engineCandidates.Select(path => $"Đã thử: {path}")));
+            return;
+        }
+
+        var configFileName = GameRule switch
+        {
+            GameRule.Freestyle => "config_freestyle.toml",
+            GameRule.Standard => "config_standard.toml",
+            GameRule.Renju => "config_renju.toml",
+            _ => "config.toml"
+        };
+
+        var configPath = Path.Combine(engineDirectory, configFileName);
+
+        if (!File.Exists(configPath))
+        {
+            NotifyProfessionalModeUnavailable("Không tìm thấy tệp cấu hình AI phù hợp cho cấp độ Chuyên nghiệp.\n" +
+                                              $"Đường dẫn: {configPath}");
             return;
         }
 
         try
         {
-            _engine = new EngineClient(enginePath);
+            var engineArgs = $"--config \"{configPath}\"";
+            _engine = new EngineClient(enginePath, engineArgs);
 
             if (Rows == Columns)
             {
@@ -44,12 +66,6 @@ public partial class BoardViewModel
                 IsAIEnabled = false;
                 AIMode = "Khó";
                 return;
-            }
-
-            // ⚡ Gửi luật Renju cho Yixin
-            if (GameRule == GameRule.Renju)
-            {
-                _engine.SendRaw("RULE renju");
             }
 
             if (Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == AiPiece)

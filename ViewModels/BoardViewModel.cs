@@ -12,8 +12,36 @@ namespace Caro_game.ViewModels
 {
     public class BoardViewModel : BaseViewModel
     {
-        public int Rows { get; }
-        public int Columns { get; }
+        private int _rows;
+        private int _columns;
+        private readonly bool _allowDynamicResize;
+
+        public int Rows
+        {
+            get => _rows;
+            private set
+            {
+                if (_rows != value)
+                {
+                    _rows = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int Columns
+        {
+            get => _columns;
+            private set
+            {
+                if (_columns != value)
+                {
+                    _columns = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public ObservableCollection<Cell> Cells { get; }
 
         private readonly Dictionary<(int Row, int Col), Cell> _cellLookup;
@@ -46,6 +74,15 @@ namespace Caro_game.ViewModels
                 {
                     _isAIEnabled = value;
                     OnPropertyChanged();
+
+                    if (_isAIEnabled && AIMode == "Chuyên nghiệp")
+                    {
+                        TryInitializeMasterEngine();
+                    }
+                    else if (!_isAIEnabled)
+                    {
+                        DisposeEngine();
+                    }
                 }
             }
         }
@@ -61,7 +98,7 @@ namespace Caro_game.ViewModels
                     _aiMode = value;
                     OnPropertyChanged();
 
-                    if (_aiMode == "Bậc thầy")
+                    if (_aiMode == "Chuyên nghiệp" && IsAIEnabled)
                     {
                         TryInitializeMasterEngine();
                     }
@@ -92,10 +129,11 @@ namespace Caro_game.ViewModels
 
         public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-        public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ")
+        public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", bool allowDynamicResize = false)
         {
             Rows = rows;
             Columns = columns;
+            _allowDynamicResize = allowDynamicResize;
             AIMode = aiMode;
             CurrentPlayer = firstPlayer.StartsWith("X", StringComparison.OrdinalIgnoreCase) ? "X" : "O";
 
@@ -113,7 +151,7 @@ namespace Caro_game.ViewModels
                 _cellLookup[(r, c)] = cell;
             }
 
-            if (AIMode == "Bậc thầy")
+            if (AIMode == "Chuyên nghiệp" && IsAIEnabled)
             {
                 TryInitializeMasterEngine();
             }
@@ -174,10 +212,12 @@ namespace Caro_game.ViewModels
             // Đổi lượt
             CurrentPlayer = movingPlayer == "X" ? "O" : "X";
 
+            ExpandBoardIfNeeded(cell);
+
             // Nếu là lượt AI
             if (IsAIEnabled && CurrentPlayer == "O")
             {
-                if (AIMode == "Bậc thầy" && _engine != null)
+                if (AIMode == "Chuyên nghiệp" && _engine != null)
                 {
                     // Hiện thông báo "AI đang suy nghĩ..."
                     Application.Current.Dispatcher.Invoke(() =>
@@ -381,6 +421,122 @@ namespace Caro_game.ViewModels
             }
         }
 
+        private void ExpandBoardIfNeeded(Cell movedCell)
+        {
+            if (!_allowDynamicResize)
+            {
+                return;
+            }
+
+            const int threshold = 2;
+            bool expanded = false;
+
+            if (movedCell.Row <= threshold)
+            {
+                AddRowTop();
+                expanded = true;
+            }
+
+            if (Rows - 1 - movedCell.Row <= threshold)
+            {
+                AddRowBottom();
+                expanded = true;
+            }
+
+            if (movedCell.Col <= threshold)
+            {
+                AddColumnLeft();
+                expanded = true;
+            }
+
+            if (Columns - 1 - movedCell.Col <= threshold)
+            {
+                AddColumnRight();
+                expanded = true;
+            }
+
+            if (expanded)
+            {
+                RebuildCandidatePositions();
+            }
+        }
+
+        private void AddRowTop()
+        {
+            foreach (var cell in Cells)
+            {
+                cell.Row++;
+            }
+
+            var newCells = Enumerable.Range(0, Columns)
+                .Select(c => new Cell(0, c, this))
+                .ToList();
+
+            Rows = Rows + 1;
+            RefreshCells(newCells);
+        }
+
+        private void AddRowBottom()
+        {
+            var newRow = Rows;
+            var newCells = Enumerable.Range(0, Columns)
+                .Select(c => new Cell(newRow, c, this))
+                .ToList();
+
+            Rows = Rows + 1;
+            RefreshCells(newCells);
+        }
+
+        private void AddColumnLeft()
+        {
+            foreach (var cell in Cells)
+            {
+                cell.Col++;
+            }
+
+            var newCells = Enumerable.Range(0, Rows)
+                .Select(r => new Cell(r, 0, this))
+                .ToList();
+
+            Columns = Columns + 1;
+            RefreshCells(newCells);
+        }
+
+        private void AddColumnRight()
+        {
+            var newColumn = Columns;
+            var newCells = Enumerable.Range(0, Rows)
+                .Select(r => new Cell(r, newColumn, this))
+                .ToList();
+
+            Columns = Columns + 1;
+            RefreshCells(newCells);
+        }
+
+        private void RefreshCells(IEnumerable<Cell>? additionalCells = null)
+        {
+            var combined = Cells.ToList();
+            if (additionalCells != null)
+            {
+                combined.AddRange(additionalCells);
+            }
+
+            combined.Sort((a, b) =>
+            {
+                int rowCompare = a.Row.CompareTo(b.Row);
+                return rowCompare != 0 ? rowCompare : a.Col.CompareTo(b.Col);
+            });
+
+            Cells.Clear();
+            _cellLookup.Clear();
+
+            foreach (var cell in combined)
+            {
+                Cells.Add(cell);
+                _cellLookup[(cell.Row, cell.Col)] = cell;
+            }
+        }
+
         private bool HasNeighbor(Cell cell, int range)
             => GetNeighbors(cell.Row, cell.Col, range).Any(n => !string.IsNullOrEmpty(n.Value));
 
@@ -516,7 +672,7 @@ namespace Caro_game.ViewModels
             CurrentPlayer = _initialPlayer;
             IsPaused = false;
 
-            if (AIMode == "Bậc thầy")
+            if (AIMode == "Chuyên nghiệp" && IsAIEnabled)
             {
                 TryInitializeMasterEngine();
             }
@@ -535,7 +691,7 @@ namespace Caro_game.ViewModels
 
             if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
             {
-                NotifyMasterModeUnavailable("Không tìm thấy tệp AI cần thiết cho chế độ Bậc thầy.\n" +
+                NotifyMasterModeUnavailable("Không tìm thấy tệp AI cần thiết cho chế độ Chuyên nghiệp.\n" +
                                             $"Đường dẫn: {enginePath}");
                 return;
             }
@@ -554,7 +710,7 @@ namespace Caro_game.ViewModels
                     if (!ok)
                     {
                         MessageBox.Show("AI không hỗ trợ kích thước bàn chữ nhật. Hãy chọn bàn vuông.",
-                            "Bậc thầy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            "Chuyên nghiệp", MessageBoxButton.OK, MessageBoxImage.Warning);
 
                         DisposeEngine();
                         IsAIEnabled = false;
@@ -573,7 +729,7 @@ namespace Caro_game.ViewModels
             }
             catch (Exception ex)
             {
-                NotifyMasterModeUnavailable($"Không thể khởi động AI Bậc thầy.\nChi tiết: {ex}");
+                NotifyMasterModeUnavailable($"Không thể khởi động AI Chuyên nghiệp.\nChi tiết: {ex}");
             }
         }
 

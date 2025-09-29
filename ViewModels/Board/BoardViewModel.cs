@@ -40,6 +40,8 @@ public partial class BoardViewModel : BaseViewModel
 
     public ObservableCollection<Cell> Cells { get; }
 
+    public GameRule GameRule { get; }
+
     private readonly Dictionary<(int Row, int Col), Cell> _cellLookup;
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
     private readonly object _candidateLock = new();
@@ -116,10 +118,11 @@ public partial class BoardViewModel : BaseViewModel
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ")
+    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", GameRule gameRule = GameRule.Freestyle)
     {
         Rows = rows;
         Columns = columns;
+        GameRule = gameRule;
         AIMode = aiMode;
         CurrentPlayer = firstPlayer.StartsWith("X", StringComparison.OrdinalIgnoreCase) ? "X" : "O";
 

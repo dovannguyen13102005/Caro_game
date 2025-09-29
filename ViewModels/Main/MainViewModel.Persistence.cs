@@ -105,7 +105,7 @@ public partial class MainViewModel
         bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
         var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, GameRule.Freestyle)
         {
             IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
         };

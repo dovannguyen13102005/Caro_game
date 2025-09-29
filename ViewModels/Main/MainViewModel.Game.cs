@@ -10,11 +10,20 @@ public partial class MainViewModel
     private void StartGame(object? parameter)
     {
         bool isProfessionalMode = SelectedAIMode == "Chuyên nghiệp";
-        int baseSize = isProfessionalMode ? 19 : 30;
+        int baseSize = 30;
+
+        if (isProfessionalMode)
+        {
+            baseSize = SelectedProfessionalRule switch
+            {
+                "Renju" => 15,
+                _ => 19
+            };
+        }
         int rows = baseSize;
         int cols = baseSize;
 
-        var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode)
+        var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode, GetSelectedProfessionalRule())
         {
             IsAIEnabled = IsAIEnabled
         };

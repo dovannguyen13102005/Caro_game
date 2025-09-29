@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using Caro_game;
+using Caro_game.Models;
 
 namespace Caro_game.ViewModels;
 
@@ -13,7 +14,11 @@ public partial class BoardViewModel
         DisposeEngine();
 
         var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        var enginePath = Path.Combine(baseDirectory, "AI", "pbrain-rapfi-windows-avx2.exe");
+        var engineFile = GameRule == GameRule.Renju
+            ? "pbrain-Yixin2018.exe"
+            : "pbrain-rapfi-windows-avx2.exe";
+
+        var enginePath = Path.Combine(baseDirectory, "AI", engineFile);
 
         if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
         {

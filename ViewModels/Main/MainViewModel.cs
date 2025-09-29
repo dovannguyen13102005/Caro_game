@@ -33,6 +33,8 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<string> Players { get; }
     public ObservableCollection<string> AIModes { get; }
+    public ObservableCollection<string> ProfessionalRules { get; } =
+        new ObservableCollection<string> { "Freestyle", "Renju" };
     public ObservableCollection<TimeOption> TimeOptions { get; }
 
     public ObservableCollection<string> Themes { get; } =
@@ -95,9 +97,31 @@ public partial class MainViewModel : INotifyPropertyChanged
             {
                 _selectedAIMode = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsProfessionalModeSelected));
+
+                if (!IsProfessionalModeSelected && SelectedProfessionalRule != ProfessionalRules[0])
+                {
+                    SelectedProfessionalRule = ProfessionalRules[0];
+                }
             }
         }
     }
+
+    private string _selectedProfessionalRule = "Freestyle";
+    public string SelectedProfessionalRule
+    {
+        get => _selectedProfessionalRule;
+        set
+        {
+            if (_selectedProfessionalRule != value)
+            {
+                _selectedProfessionalRule = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public bool IsProfessionalModeSelected => SelectedAIMode == "Chuyên nghiệp";
 
     public string SelectedTheme
     {
@@ -263,4 +287,7 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    private GameRule GetSelectedProfessionalRule()
+        => SelectedProfessionalRule == "Renju" ? GameRule.Renju : GameRule.Freestyle;
 }

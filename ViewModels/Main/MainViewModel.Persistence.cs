@@ -33,6 +33,10 @@ public partial class MainViewModel
                 Columns = Board.Columns,
                 FirstPlayer = Board.InitialPlayer,
                 CurrentPlayer = Board.CurrentPlayer,
+                HumanPiece = Board.HumanPiece,
+                AiPiece = Board.AiPiece,
+                FirstMoveOption = Board.FirstMoveOption.ToString(),
+                GameRule = Board.GameRule.ToString(),
                 IsAIEnabled = Board.IsAIEnabled,
                 AIMode = Board.AIMode,
                 TimeLimitMinutes = SelectedTimeOption.Minutes,
@@ -96,7 +100,16 @@ public partial class MainViewModel
         IsGameActive = false;
         IsGamePaused = false;
 
-        FirstPlayer = state.FirstPlayer == "O" ? "O" : "X (Bạn)";
+        var savedOption = ParseSavedFirstMoveOption(state.FirstMoveOption, state.HumanPiece);
+        SelectedFirstMoveOption = GetDisplayLabelForOption(savedOption);
+
+        var savedRule = ParseSavedGameRule(state.GameRule);
+        SelectedGameRule = savedRule switch
+        {
+            GameRule.Standard => "Standard",
+            GameRule.Renju => "Renju",
+            _ => "Freestyle"
+        };
 
         IsAIEnabled = state.IsAIEnabled;
         var targetMode = string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!;
@@ -105,7 +118,7 @@ public partial class MainViewModel
         bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
         var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, GameRule.Freestyle)
+        var board = new BoardViewModel(state.Rows, state.Columns, savedOption, boardAIMode, savedRule)
         {
             IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
         };
@@ -161,7 +174,7 @@ public partial class MainViewModel
 
         StatusMessage = hasWinner
             ? "Ván đấu đã kết thúc."
-            : IsGamePaused ? "Đang tạm dừng" : "Đang chơi";
+            : IsGamePaused ? "Đang tạm dừng" : BuildStartStatus(board);
 
         CommandManager.InvalidateRequerySuggested();
     }

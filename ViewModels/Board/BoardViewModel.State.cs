@@ -19,6 +19,21 @@ public partial class BoardViewModel
             cell.IsWinningCell = false;
         }
 
+        if (!string.IsNullOrWhiteSpace(state.FirstPlayer))
+        {
+            _initialPlayer = state.FirstPlayer!;
+        }
+
+        if (!string.IsNullOrWhiteSpace(state.HumanPiece))
+        {
+            HumanPiece = state.HumanPiece!;
+        }
+
+        if (!string.IsNullOrWhiteSpace(state.AiPiece))
+        {
+            AiPiece = state.AiPiece!;
+        }
+
         if (state.Cells != null)
         {
             foreach (var cellState in state.Cells)

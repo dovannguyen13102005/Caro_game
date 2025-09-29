@@ -17,7 +17,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private static readonly Uri DarkThemeUri = new("Resources/Themes/DarkTheme.xaml", UriKind.Relative);
     private static readonly Uri LightThemeUri = new("Resources/Themes/LightTheme.xaml", UriKind.Relative);
 
-    private string _firstPlayer;
+    private string _selectedFirstMoveOption;
     private BoardViewModel? _board;
     private bool _isAIEnabled;
     private string _selectedAIMode;
@@ -31,23 +31,23 @@ public partial class MainViewModel : INotifyPropertyChanged
     private DispatcherTimer? _gameTimer;
     private TimeSpan _configuredDuration = TimeSpan.Zero;
 
-    public ObservableCollection<string> Players { get; }
+    public ObservableCollection<string> FirstMoveOptions { get; }
     public ObservableCollection<string> AIModes { get; }
-    public ObservableCollection<string> ProfessionalRules { get; } =
-        new ObservableCollection<string> { "Freestyle", "Renju" };
+    public ObservableCollection<string> GameRules { get; } =
+        new ObservableCollection<string> { "Freestyle", "Standard", "Renju" };
     public ObservableCollection<TimeOption> TimeOptions { get; }
 
     public ObservableCollection<string> Themes { get; } =
         new ObservableCollection<string> { DefaultDarkThemeLabel, "Light" };
 
-    public string FirstPlayer
+    public string SelectedFirstMoveOption
     {
-        get => _firstPlayer;
+        get => _selectedFirstMoveOption;
         set
         {
-            if (_firstPlayer != value)
+            if (_selectedFirstMoveOption != value)
             {
-                _firstPlayer = value;
+                _selectedFirstMoveOption = value;
                 OnPropertyChanged();
             }
         }
@@ -99,23 +99,19 @@ public partial class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsProfessionalModeSelected));
 
-                if (!IsProfessionalModeSelected && SelectedProfessionalRule != ProfessionalRules[0])
-                {
-                    SelectedProfessionalRule = ProfessionalRules[0];
-                }
             }
         }
     }
 
-    private string _selectedProfessionalRule = "Freestyle";
-    public string SelectedProfessionalRule
+    private string _selectedGameRule = "Freestyle";
+    public string SelectedGameRule
     {
-        get => _selectedProfessionalRule;
+        get => _selectedGameRule;
         set
         {
-            if (_selectedProfessionalRule != value)
+            if (_selectedGameRule != value)
             {
-                _selectedProfessionalRule = value;
+                _selectedGameRule = value;
                 OnPropertyChanged();
             }
         }
@@ -240,7 +236,12 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     public MainViewModel()
     {
-        Players = new ObservableCollection<string> { "X (Bạn)", "O" };
+        FirstMoveOptions = new ObservableCollection<string>
+        {
+            "Bạn đi trước (X)",
+            "Máy đi trước (X)",
+            "Ngẫu nhiên"
+        };
         AIModes = new ObservableCollection<string> { "Dễ", "Khó", "Chuyên nghiệp" };
         TimeOptions = new ObservableCollection<TimeOption>
         {
@@ -254,7 +255,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             new TimeOption(60, "60 phút")
         };
 
-        FirstPlayer = "X (Bạn)";
+        SelectedFirstMoveOption = "Ngẫu nhiên";
         IsAIEnabled = true;
         SelectedAIMode = "Khó";
 
@@ -288,6 +289,68 @@ public partial class MainViewModel : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-    private GameRule GetSelectedProfessionalRule()
-        => SelectedProfessionalRule == "Renju" ? GameRule.Renju : GameRule.Freestyle;
+    private FirstMoveOption ResolveFirstMoveOption() => SelectedFirstMoveOption switch
+    {
+        string s when s.StartsWith("Máy", StringComparison.OrdinalIgnoreCase) => FirstMoveOption.ComputerFirst,
+        string s when s.StartsWith("Ngẫu", StringComparison.OrdinalIgnoreCase) => FirstMoveOption.Random,
+        _ => FirstMoveOption.PlayerFirst
+    };
+
+    private string BuildStartStatus(BoardViewModel board)
+    {
+        if (IsAIEnabled)
+        {
+            return board.HumanPiece == "X"
+                ? "Đang chơi - Bạn đi trước"
+                : "Đang chơi - Máy đi trước";
+        }
+
+        return board.HumanPiece == "X"
+            ? "Đang chơi - X đi trước"
+            : "Đang chơi - O đi trước";
+    }
+
+    private string GetDisplayLabelForOption(FirstMoveOption option) => option switch
+    {
+        FirstMoveOption.ComputerFirst => "Máy đi trước (X)",
+        FirstMoveOption.Random => "Ngẫu nhiên",
+        _ => "Bạn đi trước (X)"
+    };
+
+    private FirstMoveOption ParseSavedFirstMoveOption(string? value, string? humanPiece)
+    {
+        if (Enum.TryParse<FirstMoveOption>(value, true, out var option))
+        {
+            return option;
+        }
+
+        if (string.Equals(humanPiece, "X", StringComparison.OrdinalIgnoreCase))
+        {
+            return FirstMoveOption.PlayerFirst;
+        }
+
+        if (string.Equals(humanPiece, "O", StringComparison.OrdinalIgnoreCase))
+        {
+            return FirstMoveOption.ComputerFirst;
+        }
+
+        return FirstMoveOption.PlayerFirst;
+    }
+
+    private GameRule ParseSavedGameRule(string? ruleValue)
+    {
+        if (Enum.TryParse<GameRule>(ruleValue, true, out var rule))
+        {
+            return rule;
+        }
+
+        return GameRule.Freestyle;
+    }
+
+    private GameRule GetSelectedGameRule() => SelectedGameRule switch
+    {
+        "Standard" => GameRule.Standard,
+        "Renju" => GameRule.Renju,
+        _ => GameRule.Freestyle
+    };
 }

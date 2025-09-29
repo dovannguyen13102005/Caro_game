@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Windows;
-using Caro_game;
 using Caro_game.Models;
 
 namespace Caro_game.ViewModels;
@@ -42,12 +40,18 @@ public partial class BoardViewModel : BaseViewModel
 
     public GameRule GameRule { get; }
 
+    public FirstMoveOption FirstMoveOption { get; }
+
+    public string HumanPiece { get; private set; } = "X";
+
+    public string AiPiece { get; private set; } = "O";
+
     private readonly Dictionary<(int Row, int Col), Cell> _cellLookup;
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
     private readonly object _candidateLock = new();
-    private readonly string _initialPlayer;
+    private string _initialPlayer = "X";
 
-    private string _currentPlayer;
+    private string _currentPlayer = "X";
     public string CurrentPlayer
     {
         get => _currentPlayer;
@@ -71,6 +75,11 @@ public partial class BoardViewModel : BaseViewModel
             {
                 _isAIEnabled = value;
                 OnPropertyChanged();
+
+                if (_isAIEnabled && Cells.All(c => string.IsNullOrEmpty(c.Value)))
+                {
+                    MaybeScheduleAiMove(null);
+                }
             }
         }
     }
@@ -118,18 +127,18 @@ public partial class BoardViewModel : BaseViewModel
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", GameRule gameRule = GameRule.Freestyle)
+    public BoardViewModel(int rows, int columns, FirstMoveOption firstMoveOption, string aiMode = "Dễ", GameRule gameRule = GameRule.Freestyle)
     {
         Rows = rows;
         Columns = columns;
         GameRule = gameRule;
-        AIMode = aiMode;
-        CurrentPlayer = firstPlayer.StartsWith("X", StringComparison.OrdinalIgnoreCase) ? "X" : "O";
+        FirstMoveOption = firstMoveOption;
 
-        _initialPlayer = CurrentPlayer;
         Cells = new ObservableCollection<Cell>();
         _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
         _candidatePositions = new HashSet<(int, int)>();
+
+        InitializeTurnOrder();
 
         for (int i = 0; i < rows * columns; i++)
         {
@@ -140,9 +149,27 @@ public partial class BoardViewModel : BaseViewModel
             _cellLookup[(r, c)] = cell;
         }
 
+        AIMode = aiMode;
+
         if (AIMode == "Chuyên nghiệp")
         {
             TryInitializeProfessionalEngine();
         }
+    }
+
+    private void InitializeTurnOrder()
+    {
+        bool humanStarts = FirstMoveOption switch
+        {
+            FirstMoveOption.PlayerFirst => true,
+            FirstMoveOption.ComputerFirst => false,
+            FirstMoveOption.Random => Random.Shared.Next(2) == 0,
+            _ => true
+        };
+
+        _initialPlayer = "X";
+        CurrentPlayer = "X";
+        HumanPiece = humanStarts ? "X" : "O";
+        AiPiece = humanStarts ? "O" : "X";
     }
 }

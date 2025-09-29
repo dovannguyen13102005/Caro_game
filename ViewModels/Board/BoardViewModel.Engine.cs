@@ -52,10 +52,9 @@ public partial class BoardViewModel
                 _engine.SendRaw("RULE renju");
             }
 
-            if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
+            if (Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == AiPiece)
             {
-                var aiMove = _engine.Begin();
-                PlaceAiIfValid(aiMove);
+                MaybeScheduleAiMove(null);
             }
         }
         catch (Exception ex)

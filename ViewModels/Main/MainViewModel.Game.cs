@@ -14,7 +14,7 @@ public partial class MainViewModel
 
         if (isProfessionalMode)
         {
-            baseSize = SelectedProfessionalRule switch
+            baseSize = SelectedGameRule switch
             {
                 "Renju" => 15,
                 _ => 19
@@ -23,7 +23,9 @@ public partial class MainViewModel
         int rows = baseSize;
         int cols = baseSize;
 
-        var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode, GetSelectedProfessionalRule())
+        var firstMoveOption = ResolveFirstMoveOption();
+
+        var board = new BoardViewModel(rows, cols, firstMoveOption, SelectedAIMode, GetSelectedGameRule())
         {
             IsAIEnabled = IsAIEnabled
         };
@@ -39,7 +41,7 @@ public partial class MainViewModel
         IsGameActive = true;
         IsGamePaused = false;
         board.IsPaused = false;
-        StatusMessage = "Đang chơi";
+        StatusMessage = BuildStartStatus(board);
     }
 
     private void TogglePause()
@@ -147,7 +149,7 @@ public partial class MainViewModel
             IsGamePaused = false;
             Board!.IsPaused = false;
             StartTimer();
-            StatusMessage = "Đang chơi";
+            StatusMessage = BuildStartStatus(Board!);
         }
         else
         {

@@ -42,7 +42,9 @@
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Người đi trước:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
-                                        <ComboBox Width="120" ItemsSource="{Binding Players}" SelectedItem="{Binding FirstPlayer}"/>
+                                        <ComboBox Width="140"
+                                                  ItemsSource="{Binding FirstMoveOptions}"
+                                                  SelectedItem="{Binding SelectedFirstMoveOption}"/>
                                     </StackPanel>
 
                                     <CheckBox Content="Chơi với máy" Margin="0,10,0,0"
@@ -57,27 +59,10 @@
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Luật chơi:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
-                                        <ComboBox Width="120"
-                                                  ItemsSource="{Binding ProfessionalRules}"
-                                                  SelectedItem="{Binding SelectedProfessionalRule}"
-                                                  IsEnabled="{Binding IsProfessionalModeSelected}"
-                                                  ToolTip="Chỉ áp dụng cho chế độ Chuyên nghiệp"/>
+                                        <ComboBox Width="140"
+                                                  ItemsSource="{Binding GameRules}"
+                                                  SelectedItem="{Binding SelectedGameRule}"/>
                                     </StackPanel>
-                                    <TextBlock Text="(Chỉ áp dụng cho chế độ Chuyên nghiệp)"
-                                               Margin="0,4,0,0"
-                                               FontSize="12"
-                                               Foreground="{DynamicResource MutedForegroundBrush}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Visible"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsProfessionalModeSelected}" Value="True">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Thời gian (phút):" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
@@ -195,7 +180,7 @@
                                 <Separator Margin="0,8"/>
 
                                 <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc hoặc chéo." Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Lượt đi: X luôn đi trước, O đi sau." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Lượt đi: quân đi trước luôn là X; có thể chọn bạn, máy hoặc ngẫu nhiên." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
                                 <TextBlock Text="• Bàn cờ: mặc định 30×30, phù hợp chơi freestyle." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
 
                                 <Separator Margin="0,8"/>

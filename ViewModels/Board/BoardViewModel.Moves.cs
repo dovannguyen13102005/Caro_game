@@ -10,11 +10,59 @@ namespace Caro_game.ViewModels;
 
 public partial class BoardViewModel
 {
-    public void MakeMove(Cell cell)
+    private static readonly int[][] Directions =
+    {
+        new[] { 0, 1 },
+        new[] { 1, 0 },
+        new[] { 1, 1 },
+        new[] { 1, -1 }
+    };
+
+    private static readonly string[] RenjuOpenThreePatterns =
+    {
+        ".XXX.",
+        "..XXX.",
+        ".XXX..",
+        ".XX.X.",
+        ".X.XX."
+    };
+
+    private static readonly string[] RenjuOpenFourPatterns =
+    {
+        ".XXXX.",
+        "..XXXX.",
+        ".XXXX..",
+        ".XXX.X.",
+        ".X.XXX.",
+        ".XX.XX.",
+        "..XXX.X.",
+        ".XXX.X..",
+        "..X.XXX.",
+        ".X.XXX..",
+        "..XX.XX.",
+        ".XX.XX.."
+    };
+
+    public void MakeMove(Cell cell, bool isAiMove = false)
     {
         if (IsPaused || !string.IsNullOrEmpty(cell.Value))
         {
             return;
+        }
+
+        if (IsAIEnabled)
+        {
+            if (isAiMove)
+            {
+                if (CurrentPlayer != AiPiece)
+                {
+                    return;
+                }
+            }
+            else if (CurrentPlayer != HumanPiece)
+            {
+                return;
+            }
         }
 
         var movingPlayer = CurrentPlayer;
@@ -23,8 +71,26 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
-        // ✅ Nếu Renju → để Yixin xử lý luật, không cần check thủ công
-        // Nếu là freestyle (Rapfi) thì chỉ cần check thắng ≥ 5
+        bool isWinningMove = CheckWin(originalRow, originalCol, movingPlayer);
+
+        bool shouldValidateRenju = GameRule == GameRule.Renju &&
+                                   movingPlayer == "X" &&
+                                   !(IsAIEnabled && AIMode == "Chuyên nghiệp");
+
+        if (shouldValidateRenju)
+        {
+            string? violation = ValidateRenjuMove(originalRow, originalCol, isWinningMove);
+            if (violation != null)
+            {
+                cell.Value = string.Empty;
+                Application.Current.Dispatcher?.Invoke(() =>
+                {
+                    MessageBox.Show(violation, "Renju", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
+                return;
+            }
+        }
+
         if (!(IsAIEnabled && AIMode == "Chuyên nghiệp"))
         {
             ExpandBoardIfNeeded(originalRow, originalCol);
@@ -32,7 +98,7 @@ public partial class BoardViewModel
 
         UpdateCandidatePositions(cell.Row, cell.Col);
 
-        if (CheckWin(cell.Row, cell.Col, movingPlayer))
+        if (isWinningMove)
         {
             HighlightWinningCells(cell.Row, cell.Col, movingPlayer);
 
@@ -75,44 +141,9 @@ public partial class BoardViewModel
 
         CurrentPlayer = movingPlayer == "X" ? "O" : "X";
 
-        if (IsAIEnabled && CurrentPlayer == "O")
+        if (IsAIEnabled && CurrentPlayer == AiPiece)
         {
-            if (AIMode == "Chuyên nghiệp" && _engine != null)
-            {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    var mainVm = Application.Current.MainWindow?.DataContext as MainViewModel;
-                    mainVm?.SetStatus("AI đang suy nghĩ...");
-                });
-
-                Task.Run(() =>
-                {
-                    try
-                    {
-                        string aiMove = _engine!.Turn(cell.Col, cell.Row);
-                        PlaceAiIfValid(aiMove);
-
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            var mainVm = Application.Current.MainWindow?.DataContext as MainViewModel;
-                            mainVm?.SetStatus("Đang chơi");
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            MessageBox.Show($"AI engine error: {ex.Message}", "Error",
-                                MessageBoxButton.OK, MessageBoxImage.Error);
-                        });
-                        DisposeEngine();
-                    }
-                });
-            }
-            else
-            {
-                Task.Run(AIMove);
-            }
+            MaybeScheduleAiMove(isAiMove ? null : cell);
         }
     }
 
@@ -131,12 +162,16 @@ public partial class BoardViewModel
             _candidatePositions.Clear();
         }
 
-        CurrentPlayer = _initialPlayer;
+        InitializeTurnOrder();
         IsPaused = false;
 
         if (AIMode == "Chuyên nghiệp")
         {
             TryInitializeProfessionalEngine();
+        }
+        else if (IsAIEnabled)
+        {
+            MaybeScheduleAiMove(null);
         }
     }
 
@@ -147,11 +182,14 @@ public partial class BoardViewModel
             return;
         }
 
+        string aiPiece = AiPiece;
+        string opponent = HumanPiece;
+
         Cell? bestCell = null;
 
         if (AIMode == "Dễ")
         {
-            var lastPlayerMove = Cells.LastOrDefault(c => c.Value == "X");
+            var lastPlayerMove = Cells.LastOrDefault(c => c.Value == opponent);
             if (lastPlayerMove != null)
             {
                 var neighbors = Cells.Where(c =>
@@ -162,7 +200,7 @@ public partial class BoardViewModel
 
                 if (neighbors.Any())
                 {
-                    bestCell = neighbors[new Random().Next(neighbors.Count)];
+                    bestCell = neighbors[Random.Shared.Next(neighbors.Count)];
                 }
             }
 
@@ -171,7 +209,7 @@ public partial class BoardViewModel
                 var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
                 if (emptyCells.Any())
                 {
-                    bestCell = emptyCells[new Random().Next(emptyCells.Count)];
+                    bestCell = emptyCells[Random.Shared.Next(emptyCells.Count)];
                 }
             }
         }
@@ -190,7 +228,7 @@ public partial class BoardViewModel
 
             foreach (var candidate in candidates)
             {
-                int score = EvaluateCellAdvanced(candidate);
+                int score = EvaluateCellAdvanced(candidate, aiPiece, opponent);
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -201,7 +239,7 @@ public partial class BoardViewModel
 
         if (bestCell != null)
         {
-            Application.Current.Dispatcher.Invoke(() => MakeMove(bestCell));
+            Application.Current.Dispatcher.Invoke(() => MakeMove(bestCell, true));
         }
     }
 
@@ -218,7 +256,7 @@ public partial class BoardViewModel
             int.TryParse(parts[1], out int aiY) &&
             _cellLookup.TryGetValue((aiY, aiX), out var aiCell))
         {
-            Application.Current.Dispatcher.Invoke(() => MakeMove(aiCell));
+            Application.Current.Dispatcher.Invoke(() => MakeMove(aiCell, true));
         }
     }
 
@@ -260,12 +298,12 @@ public partial class BoardViewModel
         }
     }
 
-    private int EvaluateCellAdvanced(Cell cell)
+    private int EvaluateCellAdvanced(Cell cell, string aiPiece, string opponent)
     {
         int score = 0;
-        score += EvaluatePotential(cell, "O");
-        score += EvaluatePotential(cell, "X") * 2;
-        score += ProximityScore(cell, "X") * 5;
+        score += EvaluatePotential(cell, aiPiece);
+        score += EvaluatePotential(cell, opponent) * 2;
+        score += ProximityScore(cell, opponent) * 5;
         return score;
     }
 
@@ -285,9 +323,8 @@ public partial class BoardViewModel
     private int EvaluatePotential(Cell cell, string player)
     {
         int totalScore = 0;
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
 
-        foreach (var dir in directions)
+        foreach (var dir in Directions)
         {
             int count = 1;
             count += CountDirectionSimulate(cell.Row, cell.Col, dir[0], dir[1], player);
@@ -331,21 +368,39 @@ public partial class BoardViewModel
 
     private bool CheckWin(int row, int col, string player)
     {
-        // Nếu Renju thì Yixin sẽ tự xử lý luật
-        if (GameRule == GameRule.Renju)
-            return false;
-
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
-
-        foreach (var dir in directions)
+        foreach (var dir in Directions)
         {
             int count = 1;
             count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
             count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
 
-            if (count >= 5)
+            switch (GameRule)
             {
-                return true;
+                case GameRule.Freestyle:
+                    if (count >= 5)
+                    {
+                        return true;
+                    }
+                    break;
+                case GameRule.Standard:
+                    if (count == 5)
+                    {
+                        return true;
+                    }
+                    break;
+                case GameRule.Renju:
+                    if (player == "X")
+                    {
+                        if (count == 5)
+                        {
+                            return true;
+                        }
+                    }
+                    else if (count >= 5)
+                    {
+                        return true;
+                    }
+                    break;
             }
         }
 
@@ -354,9 +409,7 @@ public partial class BoardViewModel
 
     private void HighlightWinningCells(int row, int col, string player)
     {
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
-
-        foreach (var dir in directions)
+        foreach (var dir in Directions)
         {
             var line = GetLine(row, col, dir[0], dir[1], player);
             var opposite = GetLine(row, col, -dir[0], -dir[1], player);
@@ -399,5 +452,223 @@ public partial class BoardViewModel
         }
 
         return list;
+    }
+
+    private string? ValidateRenjuMove(int row, int col, bool isWinningMove)
+    {
+        if (IsRenjuOverline(row, col))
+        {
+            return "Nước đi này vi phạm luật Renju: X không được tạo hơn 5 quân liên tiếp (overline).";
+        }
+
+        if (isWinningMove)
+        {
+            return null;
+        }
+
+        int openFourCount = CountRenjuOpenFours(row, col);
+        if (openFourCount >= 2)
+        {
+            return "Nước đi này vi phạm luật Renju: cấm tạo đồng thời hai thế tứ (double-four).";
+        }
+
+        int openThreeCount = CountRenjuOpenThrees(row, col);
+        if (openThreeCount >= 2)
+        {
+            return "Nước đi này vi phạm luật Renju: cấm tạo đồng thời hai thế tam mở (double-three).";
+        }
+
+        return null;
+    }
+
+    private bool IsRenjuOverline(int row, int col)
+    {
+        foreach (var dir in Directions)
+        {
+            int count = 1;
+            count += CountDirectionSimulate(row, col, dir[0], dir[1], "X");
+            count += CountDirectionSimulate(row, col, -dir[0], -dir[1], "X");
+
+            if (count > 5)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int CountRenjuOpenFours(int row, int col)
+    {
+        int total = 0;
+        foreach (var dir in Directions)
+        {
+            var data = BuildRenjuLine(row, col, dir[0], dir[1]);
+            total += CountPatternMatches(data, RenjuOpenFourPatterns);
+        }
+        return total;
+    }
+
+    private int CountRenjuOpenThrees(int row, int col)
+    {
+        int total = 0;
+        foreach (var dir in Directions)
+        {
+            var data = BuildRenjuLine(row, col, dir[0], dir[1]);
+            total += CountPatternMatches(data, RenjuOpenThreePatterns);
+        }
+        return total;
+    }
+
+    private (string line, int centerIndex) BuildRenjuLine(int row, int col, int dRow, int dCol)
+    {
+        const int range = 6;
+        var chars = new char[range * 2 + 1];
+
+        for (int offset = -range; offset <= range; offset++)
+        {
+            int r = row + offset * dRow;
+            int c = col + offset * dCol;
+            char value;
+
+            if (_cellLookup.TryGetValue((r, c), out var cell))
+            {
+                value = string.IsNullOrEmpty(cell.Value) ? '.' : cell.Value[0];
+            }
+            else
+            {
+                value = '#';
+            }
+
+            chars[offset + range] = value;
+        }
+
+        return (new string(chars), range);
+    }
+
+    private int CountPatternMatches((string line, int centerIndex) data, string[] patterns)
+    {
+        var (line, centerIndex) = data;
+        var matches = new HashSet<int>();
+
+        foreach (var pattern in patterns)
+        {
+            int searchIndex = 0;
+            while (searchIndex <= line.Length - pattern.Length)
+            {
+                int index = line.IndexOf(pattern, searchIndex, StringComparison.Ordinal);
+                if (index == -1)
+                {
+                    break;
+                }
+
+                if (index <= centerIndex && centerIndex < index + pattern.Length)
+                {
+                    bool valid = true;
+                    for (int i = 0; i < pattern.Length; i++)
+                    {
+                        char expected = pattern[i];
+                        char actual = line[index + i];
+
+                        if (expected == '.')
+                        {
+                            if (actual != '.')
+                            {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        else if (expected == 'X' || expected == 'O')
+                        {
+                            if (actual != expected)
+                            {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        else if (expected == '#')
+                        {
+                            if (actual != '#')
+                            {
+                                valid = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (valid)
+                    {
+                        matches.Add(index);
+                    }
+                }
+
+                searchIndex = index + 1;
+            }
+        }
+
+        return matches.Count;
+    }
+
+    private void MaybeScheduleAiMove(Cell? lastHumanMove)
+    {
+        if (!IsAIEnabled || IsPaused || CurrentPlayer != AiPiece)
+        {
+            return;
+        }
+
+        if (AIMode == "Chuyên nghiệp" && _engine != null)
+        {
+            Application.Current.Dispatcher?.Invoke(() =>
+            {
+                if (Application.Current.MainWindow?.DataContext is MainViewModel mainVm)
+                {
+                    mainVm.SetStatus("AI đang suy nghĩ...");
+                }
+            });
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    string aiMove;
+                    if (lastHumanMove != null)
+                    {
+                        aiMove = _engine!.Turn(lastHumanMove.Col, lastHumanMove.Row);
+                    }
+                    else
+                    {
+                        if (Cells.Any(c => !string.IsNullOrEmpty(c.Value)))
+                        {
+                            return;
+                        }
+
+                        aiMove = _engine!.Begin();
+                    }
+
+                    PlaceAiIfValid(aiMove);
+
+                    Application.Current.Dispatcher?.Invoke(() =>
+                    {
+                        if (Application.Current.MainWindow?.DataContext is MainViewModel vm)
+                        {
+                            vm.SetStatus("Đang chơi");
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Application.Current.Dispatcher?.Invoke(() =>
+                    {
+                        MessageBox.Show($"AI engine error: {ex.Message}", "Error",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
+                    DisposeEngine();
+                }
+            });
+        }
+        else
+        {
+            Task.Run(AIMove);
+        }
     }
 }

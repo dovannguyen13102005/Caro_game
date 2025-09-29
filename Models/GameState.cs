@@ -9,6 +9,10 @@ namespace Caro_game.Models
         public int Columns { get; set; }
         public string? FirstPlayer { get; set; }
         public string? CurrentPlayer { get; set; }
+        public string? HumanPiece { get; set; }
+        public string? AiPiece { get; set; }
+        public string? FirstMoveOption { get; set; }
+        public string? GameRule { get; set; }
         public bool IsAIEnabled { get; set; }
         public string? AIMode { get; set; }
         public int TimeLimitMinutes { get; set; }

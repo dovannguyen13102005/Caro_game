@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace Caro_game
@@ -9,9 +10,12 @@ namespace Caro_game
         private Process? _process;
         private StreamWriter? _input;
         private StreamReader? _output;
+        private readonly string _logFile;
 
         public EngineClient(string enginePath)
         {
+            _logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "engine_log.txt");
+
             var psi = new ProcessStartInfo
             {
                 FileName = enginePath,
@@ -27,74 +31,71 @@ namespace Caro_game
             _input = _process.StandardInput;
             _output = _process.StandardOutput;
 
+            Log($"[Init] Engine started: {enginePath}");
+
+            // gửi timeout mặc định
             Send("INFO timeout_turn 1000");
             Send("INFO timeout_match 60000");
         }
 
-        private void Send(string cmd)
+        private void Log(string msg)
         {
             try
             {
-                if (_input == null) return;
-                Console.WriteLine("[Send] " + cmd);
-                _input.WriteLine(cmd);
-                _input.Flush();
+                File.AppendAllText(_logFile, $"{DateTime.Now:HH:mm:ss} {msg}\n");
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine("[EngineClient] Send error: " + ex.Message);
+                // nếu không ghi được file thì bỏ qua
             }
+        }
+
+        private void Send(string cmd)
+        {
+            if (_input == null) return;
+            Log("[Send] " + cmd);
+            _input.WriteLine(cmd);
+            _input.Flush();
         }
 
         private string ReceiveLine()
         {
-            try
-            {
-                if (_output == null) return string.Empty;
+            if (_output == null) return string.Empty;
 
-                string? line;
-                while ((line = _output.ReadLine()) != null)
-                {
-                    if (line.StartsWith("MESSAGE"))
-                    {
-                        Console.WriteLine("[Engine] " + line);
-                        continue;
-                    }
-                    Console.WriteLine("[Recv] " + line);
-                    return line;
-                }
-
-                if (_process != null && _process.HasExited)
-                {
-                    Console.WriteLine("[Engine] process exited unexpectedly!");
-                }
-            }
-            catch (Exception ex)
+            string? line;
+            while ((line = _output.ReadLine()) != null)
             {
-                Console.WriteLine("[EngineClient] Receive error: " + ex.Message);
+                if (line.StartsWith("MESSAGE"))
+                {
+                    Log("[Engine MESSAGE] " + line);
+                    continue;
+                }
+                Log("[Recv] " + line);
+                return line;
             }
+
+            if (_process != null && _process.HasExited)
+            {
+                Log("[Engine] process exited unexpectedly!");
+            }
+
             return string.Empty;
         }
 
-        private bool AwaitOk()
-        {
-            var resp = ReceiveLine();
-            return !string.IsNullOrEmpty(resp) && resp.StartsWith("OK", StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary> START N (bàn vuông N x N) và đọc OK </summary>
-        public bool StartSquare(int size)
+        public void StartSquare(int size)
         {
             Send($"START {size}");
-            return AwaitOk();
+            var resp = ReceiveLine(); // nuốt OK nếu có
+            if (!string.IsNullOrEmpty(resp))
+                Log("[StartSquare resp] " + resp);
         }
 
-        /// <summary> RECTSTART W,H (bàn chữ nhật). W=x=Columns, H=y=Rows. Đọc OK. </summary>
         public bool StartRect(int width, int height)
         {
-            // theo protocol là "RECTSTART W,H" (có dấu phẩy)
             Send($"RECTSTART {width},{height}");
-            return AwaitOk();
+            var resp = ReceiveLine();
+            return !string.IsNullOrEmpty(resp) &&
+                   resp.StartsWith("OK", StringComparison.OrdinalIgnoreCase);
         }
 
         public string Begin()
@@ -126,7 +127,9 @@ namespace Caro_game
             _input?.Dispose();
             _output?.Dispose();
             _process?.Dispose();
-            _input = null; _output = null; _process = null;
+            _input = null;
+            _output = null;
+            _process = null;
         }
     }
 }

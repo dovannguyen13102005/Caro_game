@@ -286,8 +286,8 @@ namespace Caro_game.ViewModels
                 new TimeOption(60, "60 phút")
             };
 
-            SelectedRows = 20;
-            SelectedColumns = 35;
+            SelectedRows = 40;
+            SelectedColumns = 40;
             FirstPlayer = "X (Bạn)";
             IsAIEnabled = true;
             SelectedAIMode = "Khó";
@@ -310,10 +310,29 @@ namespace Caro_game.ViewModels
             int rows = SelectedRows;
             int cols = SelectedColumns;
 
+            if (IsAIEnabled && SelectedAIMode == "Bậc thầy")
+            {
+                // Các kích thước Rapfi hỗ trợ
+                int[] supported = { 15, 20, 30 };
+
+                // Nếu người dùng chọn kích thước không hợp lệ → tự động set về 20×20
+                if (!supported.Contains(rows) || rows != cols)
+                {
+                    rows = 20;
+                    cols = 20;
+                    MessageBox.Show(
+                        "AI Bậc thầy chỉ hỗ trợ các bàn 15×15, 20×20 hoặc 30×30.\n" +
+                        "Kích thước đã được đặt về 20×20.",
+                        "Thông báo",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information
+                    );
+                }
+            }
+
             var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode)
             {
-                IsAIEnabled = IsAIEnabled,
-                AIMode = SelectedAIMode
+                IsAIEnabled = IsAIEnabled
             };
 
             Board = board;
@@ -329,6 +348,7 @@ namespace Caro_game.ViewModels
             board.IsPaused = false;
             StatusMessage = "Đang chơi";
         }
+
 
         private void TogglePause()
         {
@@ -547,10 +567,19 @@ namespace Caro_game.ViewModels
                 }
             }
         }
+        public void SetStatus(string message)
+        {
+            // An toàn cho UI thread
+            if (Application.Current?.Dispatcher?.CheckAccess() == true)
+                StatusMessage = message;   // setter private nhưng gọi trong chính class nên OK
+            else
+                Application.Current?.Dispatcher?.Invoke(() => StatusMessage = message);
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
+
 }

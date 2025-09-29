@@ -21,6 +21,8 @@ namespace Caro_game.ViewModels
         private readonly object _candidateLock = new();
         private readonly string _initialPlayer;
         private string _currentPlayer;
+        private EngineClient? _engine;
+
         public string CurrentPlayer
         {
             get => _currentPlayer;
@@ -58,9 +60,19 @@ namespace Caro_game.ViewModels
                 {
                     _aiMode = value;
                     OnPropertyChanged();
+
+                    if (_aiMode == "Bậc thầy")
+                    {
+                        TryInitializeMasterEngine();
+                    }
+                    else
+                    {
+                        DisposeEngine();
+                    }
                 }
             }
         }
+
 
         private bool _isPaused;
         public bool IsPaused
@@ -77,7 +89,6 @@ namespace Caro_game.ViewModels
         }
 
         public string InitialPlayer => _initialPlayer;
-        private EngineClient? _engine;
 
         public event EventHandler<GameEndedEventArgs>? GameEnded;
 
@@ -117,6 +128,7 @@ namespace Caro_game.ViewModels
             cell.Value = movingPlayer;
             UpdateCandidatePositions(cell.Row, cell.Col);
 
+            // Kiểm tra thắng
             if (CheckWin(cell.Row, cell.Col, movingPlayer))
             {
                 HighlightWinningCells(cell.Row, cell.Col, movingPlayer);
@@ -146,6 +158,19 @@ namespace Caro_game.ViewModels
                 return;
             }
 
+            // 🟢 Check hòa: nếu không còn ô trống
+            if (Cells.All(c => !string.IsNullOrEmpty(c.Value)))
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show("Hòa cờ! Bàn đã đầy mà không có người thắng.",
+                        "Kết thúc ván", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    GameEnded?.Invoke(this, new GameEndedEventArgs(null, false, false));
+                });
+                return;
+            }
+
             // Đổi lượt
             CurrentPlayer = movingPlayer == "X" ? "O" : "X";
 
@@ -154,20 +179,40 @@ namespace Caro_game.ViewModels
             {
                 if (AIMode == "Bậc thầy" && _engine != null)
                 {
-                    try
+                    // Hiện thông báo "AI đang suy nghĩ..."
+                    Application.Current.Dispatcher.Invoke(() =>
                     {
-                        var aiMove = _engine.Turn(cell.Col, cell.Row);
-                        PlaceAiIfValid(aiMove);
-                    }
-                    catch (Exception ex)
+                        var mainVM = Application.Current.MainWindow?.DataContext as MainViewModel;
+                        mainVM?.SetStatus("AI đang suy nghĩ...");
+                    });
+
+                    Task.Run(() =>
                     {
-                        MessageBox.Show($"AI engine error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                        DisposeEngine();
-                    }
+                        try
+                        {
+                            string aiMove = _engine.Turn(cell.Col, cell.Row);
+                            PlaceAiIfValid(aiMove);
+
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                var mainVM = Application.Current.MainWindow?.DataContext as MainViewModel;
+                                mainVM?.SetStatus("Đang chơi");
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                MessageBox.Show($"AI engine error: {ex.Message}", "Error",
+                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                            });
+                            DisposeEngine();
+                        }
+                    });
                 }
                 else
                 {
-                    // AI Dễ / Khó
+                    // AI Dễ/Khó chạy nền
                     Task.Run(AIMove);
                 }
             }
@@ -186,7 +231,6 @@ namespace Caro_game.ViewModels
                 var lastPlayerMove = Cells.LastOrDefault(c => c.Value == "X");
                 if (lastPlayerMove != null)
                 {
-
                     var neighbors = Cells.Where(c =>
                         string.IsNullOrEmpty(c.Value) &&
                         Math.Abs(c.Row - lastPlayerMove.Row) <= 1 &&
@@ -197,7 +241,6 @@ namespace Caro_game.ViewModels
                         bestCell = neighbors[new Random().Next(neighbors.Count)];
                     }
                 }
-
 
                 if (bestCell == null)
                 {
@@ -254,10 +297,7 @@ namespace Caro_game.ViewModels
             {
                 for (int dc = -range; dc <= range; dc++)
                 {
-                    if (dr == 0 && dc == 0)
-                    {
-                        continue;
-                    }
+                    if (dr == 0 && dc == 0) continue;
 
                     int r = row + dr;
                     int c = col + dc;
@@ -292,26 +332,19 @@ namespace Caro_game.ViewModels
         private int EvaluateCellAdvanced(Cell cell)
         {
             int score = 0;
-
             score += EvaluatePotential(cell, "O");
             score += EvaluatePotential(cell, "X") * 2;
             score += ProximityScore(cell, "X") * 5;
-
             return score;
         }
 
         private int ProximityScore(Cell cell, string player)
         {
             int score = 0;
-
             foreach (var neighbor in GetNeighbors(cell.Row, cell.Col, 1))
             {
-                if (neighbor.Value == player)
-                {
-                    score += 1;
-                }
+                if (neighbor.Value == player) score += 1;
             }
-
             return score;
         }
 
@@ -353,12 +386,8 @@ namespace Caro_game.ViewModels
                     r += dRow;
                     c += dCol;
                 }
-                else
-                {
-                    break;
-                }
+                else break;
             }
-
             return count;
         }
 
@@ -372,12 +401,8 @@ namespace Caro_game.ViewModels
                 count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
                 count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
 
-                if (count >= 5)
-                {
-                    return true;
-                }
+                if (count >= 5) return true;
             }
-
             return false;
         }
 
@@ -398,10 +423,7 @@ namespace Caro_game.ViewModels
 
                 if (line.Count >= 5)
                 {
-                    foreach (var c in line)
-                    {
-                        c.IsWinningCell = true;
-                    }
+                    foreach (var c in line) c.IsWinningCell = true;
                     break;
                 }
             }
@@ -421,12 +443,8 @@ namespace Caro_game.ViewModels
                     r += dRow;
                     c += dCol;
                 }
-                else
-                {
-                    break;
-                }
+                else break;
             }
-
             return list;
         }
 
@@ -438,10 +456,7 @@ namespace Caro_game.ViewModels
                 cell.IsWinningCell = false;
             }
 
-            lock (_candidateLock)
-            {
-                _candidatePositions.Clear();
-            }
+            lock (_candidateLock) _candidatePositions.Clear();
 
             CurrentPlayer = _initialPlayer;
             IsPaused = false;
@@ -452,10 +467,7 @@ namespace Caro_game.ViewModels
             }
         }
 
-        public void PauseBoard()
-        {
-            IsPaused = true;
-        }
+        public void PauseBoard() => IsPaused = true;
 
         private void TryInitializeMasterEngine()
         {
@@ -464,9 +476,12 @@ namespace Caro_game.ViewModels
             var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
             var enginePath = Path.Combine(baseDirectory, "AI", "pbrain-rapfi-windows-avx2.exe");
 
-            if (!File.Exists(enginePath))
+            Console.WriteLine("[Engine Path] " + enginePath);
+
+            if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
             {
-                NotifyMasterModeUnavailable("Không tìm thấy tệp AI cần thiết cho chế độ Bậc thầy. AI sẽ bị tắt và ứng dụng sẽ chuyển về chế độ Khó.");
+                NotifyMasterModeUnavailable("Không tìm thấy tệp AI cần thiết cho chế độ Bậc thầy.\n" +
+                                            $"Đường dẫn: {enginePath}");
                 return;
             }
 
@@ -474,51 +489,50 @@ namespace Caro_game.ViewModels
             {
                 _engine = new EngineClient(enginePath);
 
-                bool ok = (Rows == Columns)
-                    ? _engine.StartSquare(Rows)
-                    : _engine.StartRect(Columns, Rows);
-
-                if (!ok)
+                if (Rows == Columns)
                 {
-                    MessageBox.Show(
-                        "AI không hỗ trợ kích thước bàn hiện tại. Hãy chọn bàn vuông (ví dụ 15x15, 20x20).",
-                        "Bậc thầy - không hỗ trợ RECTSTART",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    _engine.StartSquare(Rows);
+                }
+                else
+                {
+                    bool ok = _engine.StartRect(Columns, Rows);
+                    if (!ok)
+                    {
+                        MessageBox.Show("AI không hỗ trợ kích thước bàn chữ nhật. Hãy chọn bàn vuông.",
+                            "Bậc thầy", MessageBoxButton.OK, MessageBoxImage.Warning);
 
-                    DisposeEngine();
-                    IsAIEnabled = false;
-                    AIMode = "Khó";
-                    return;
+                        DisposeEngine();
+                        IsAIEnabled = false;
+                        AIMode = "Khó";
+                        return;
+                    }
                 }
 
-                if (Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
+                // Nếu AI đi trước (O)
+                if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
                 {
                     var aiMove = _engine.Begin();
                     PlaceAiIfValid(aiMove);
                 }
+
             }
             catch (Exception ex)
             {
-                NotifyMasterModeUnavailable($"Không thể khởi động AI chế độ Bậc thầy. AI sẽ bị tắt và ứng dụng sẽ chuyển về chế độ Khó.\nChi tiết: {ex.Message}");
+                NotifyMasterModeUnavailable($"Không thể khởi động AI Bậc thầy.\nChi tiết: {ex}");
             }
         }
+
+
 
         private void NotifyMasterModeUnavailable(string message)
         {
             IsAIEnabled = false;
             AIMode = "Khó";
 
-            if (Application.Current?.Dispatcher != null)
-            {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show(message, "Caro", MessageBoxButton.OK, MessageBoxImage.Warning);
-                });
-            }
-            else
+            Application.Current.Dispatcher?.Invoke(() =>
             {
                 MessageBox.Show(message, "Caro", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            });
         }
 
         public void DisposeEngine()

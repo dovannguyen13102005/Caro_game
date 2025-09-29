@@ -9,57 +9,26 @@ namespace Caro_game.ViewModels
 {
     public partial class BoardViewModel
     {
+        private const string AiSymbol = "O";
+        private const string HumanSymbol = "X";
+        private const int WinningScore = 1_000_000;
+        private const double EasyDefenseMultiplier = 1.5;
+        private const double HardDefenseMultiplier = 3.5;
+        private const int EasyTopCandidates = 4;
+        private const int MaxSearchCandidates = 8;
+        private const int SearchDepth = 3;
+
         private void AIMove()
         {
             if (!IsAIEnabled || IsPaused)
                 return;
 
-            Cell? bestCell = null;
-
-            if (AIMode == "Dễ")
+            Cell? bestCell = AIMode switch
             {
-                var lastPlayerMove = Cells.LastOrDefault(c => c.Value == "X");
-                if (lastPlayerMove != null)
-                {
-                    var neighbors = Cells.Where(c =>
-                        string.IsNullOrEmpty(c.Value) &&
-                        Math.Abs(c.Row - lastPlayerMove.Row) <= 1 &&
-                        Math.Abs(c.Col - lastPlayerMove.Col) <= 1).ToList();
-
-                    if (neighbors.Any())
-                    {
-                        bestCell = neighbors[new Random().Next(neighbors.Count)];
-                    }
-                }
-
-                if (bestCell == null)
-                {
-                    var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
-                    if (emptyCells.Any())
-                        bestCell = emptyCells[new Random().Next(emptyCells.Count)];
-                }
-            }
-            else
-            {
-                var candidates = Cells
-                    .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
-                    .ToList();
-
-                if (!candidates.Any())
-                    candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
-
-                int bestScore = int.MinValue;
-
-                foreach (var cell in candidates)
-                {
-                    int score = EvaluateCellAdvanced(cell);
-                    if (score > bestScore)
-                    {
-                        bestScore = score;
-                        bestCell = cell;
-                    }
-                }
-            }
+                "Dễ" => ChooseEasyMove(),
+                "Khó" => ChooseHardMove(),
+                _ => ChooseHardMove()
+            };
 
             if (bestCell != null)
             {
@@ -67,47 +36,271 @@ namespace Caro_game.ViewModels
             }
         }
 
-        private int EvaluateCellAdvanced(Cell cell)
+        private Cell? ChooseEasyMove()
         {
-            int score = 0;
-            score += EvaluatePotential(cell, "O");
-            score += EvaluatePotential(cell, "X") * 2;
-            score += ProximityScore(cell, "X") * 5;
-            return score;
-        }
+            var candidates = Cells
+                .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
+                .ToList();
 
-        private int ProximityScore(Cell cell, string player)
-        {
-            int score = 0;
-            foreach (var neighbor in GetNeighbors(cell.Row, cell.Col, 1))
+            if (!candidates.Any())
             {
-                if (neighbor.Value == player) score += 1;
+                candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
             }
-            return score;
+
+            if (!candidates.Any())
+            {
+                return null;
+            }
+
+            var scored = candidates
+                .Select(cell => new { Cell = cell, Score = EvaluateCellAdvanced(cell) })
+                .OrderByDescending(x => x.Score)
+                .ToList();
+
+            int takeCount = Math.Min(EasyTopCandidates, scored.Count);
+            var selectionPool = scored.Take(takeCount).ToList();
+
+            return selectionPool[_random.Next(selectionPool.Count)].Cell;
         }
 
-        private int EvaluatePotential(Cell cell, string player)
+        private Cell? ChooseHardMove()
         {
+            var candidates = GetOrderedCandidates(forAi: true);
+
+            if (!candidates.Any())
+            {
+                return null;
+            }
+
+            Cell? bestCell = null;
+            int bestScore = int.MinValue;
+
+            foreach (var cell in candidates)
+            {
+                cell.Value = AiSymbol;
+
+                int score = CheckWin(cell.Row, cell.Col, AiSymbol)
+                    ? WinningScore
+                    : Minimax(SearchDepth - 1, maximizingPlayer: false, lastMove: cell, alpha: int.MinValue + 1, beta: int.MaxValue - 1);
+
+                cell.Value = string.Empty;
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestCell = cell;
+                }
+            }
+
+            return bestCell;
+        }
+
+        private List<Cell> GetOrderedCandidates(bool forAi)
+        {
+            var candidates = Cells
+                .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
+                .ToList();
+
+            if (!candidates.Any())
+            {
+                candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+            }
+
+            return (forAi
+                    ? candidates.OrderByDescending(EvaluateCellStrategic)
+                    : candidates.OrderByDescending(c => EvaluateCellForPlayer(c, HumanSymbol, HardDefenseMultiplier)))
+                .Take(MaxSearchCandidates)
+                .ToList();
+        }
+
+        private int Minimax(int depth, bool maximizingPlayer, Cell? lastMove, int alpha, int beta)
+        {
+            if (lastMove != null && !string.IsNullOrEmpty(lastMove.Value))
+            {
+                if (CheckWin(lastMove.Row, lastMove.Col, lastMove.Value))
+                {
+                    return lastMove.Value == AiSymbol
+                        ? WinningScore + depth
+                        : -WinningScore - depth;
+                }
+            }
+
+            if (depth == 0)
+            {
+                return EvaluateBoard();
+            }
+
+            var candidates = GetOrderedCandidates(forAi: maximizingPlayer);
+
+            if (!candidates.Any())
+            {
+                return EvaluateBoard();
+            }
+
+            if (maximizingPlayer)
+            {
+                int value = int.MinValue;
+
+                foreach (var move in candidates)
+                {
+                    move.Value = AiSymbol;
+                    int evaluation = Minimax(depth - 1, false, move, alpha, beta);
+                    move.Value = string.Empty;
+
+                    if (evaluation > value)
+                    {
+                        value = evaluation;
+                    }
+
+                    if (value > alpha) alpha = value;
+                    if (alpha >= beta) break;
+                }
+
+                return value;
+            }
+            else
+            {
+                int value = int.MaxValue;
+
+                foreach (var move in candidates)
+                {
+                    move.Value = HumanSymbol;
+                    int evaluation = Minimax(depth - 1, true, move, alpha, beta);
+                    move.Value = string.Empty;
+
+                    if (evaluation < value)
+                    {
+                        value = evaluation;
+                    }
+
+                    if (value < beta) beta = value;
+                    if (alpha >= beta) break;
+                }
+
+                return value;
+            }
+        }
+
+        private int EvaluateBoard()
+        {
+            int aiScore = 0;
+            int humanScore = 0;
+
+            foreach (var cell in Cells)
+            {
+                if (!string.IsNullOrEmpty(cell.Value))
+                {
+                    continue;
+                }
+
+                aiScore += EvaluatePatternScore(cell, AiSymbol);
+                humanScore += EvaluatePatternScore(cell, HumanSymbol);
+            }
+
+            return aiScore - (int)Math.Round(humanScore * HardDefenseMultiplier);
+        }
+
+        private int EvaluateCellAdvanced(Cell cell)
+            => EvaluateCellForPlayer(cell, AiSymbol, EasyDefenseMultiplier);
+
+        private int EvaluateCellStrategic(Cell cell)
+            => EvaluateCellForPlayer(cell, AiSymbol, HardDefenseMultiplier);
+
+        private int EvaluateCellForPlayer(Cell cell, string player, double defenseMultiplier)
+        {
+            int offensiveScore = EvaluatePatternScore(cell, player);
+            string opponent = player == AiSymbol ? HumanSymbol : AiSymbol;
+            int defensiveScore = EvaluatePatternScore(cell, opponent);
+
+            return offensiveScore + (int)Math.Round(defensiveScore * defenseMultiplier);
+        }
+
+        private int EvaluatePatternScore(Cell cell, string player)
+        {
+            int[][] directions =
+            {
+                new[] { 0, 1 },
+                new[] { 1, 0 },
+                new[] { 1, 1 },
+                new[] { 1, -1 }
+            };
+
             int totalScore = 0;
-            int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
 
             foreach (var dir in directions)
             {
-                int count = 1;
-                count += CountDirectionSimulate(cell.Row, cell.Col, dir[0], dir[1], player);
-                count += CountDirectionSimulate(cell.Row, cell.Col, -dir[0], -dir[1], player);
-
-                totalScore += count switch
-                {
-                    >= 5 => 10000,
-                    4 => 1000,
-                    3 => 100,
-                    2 => 10,
-                    _ => 0
-                };
+                var (count, openEnds) = AnalyzeDirection(cell, player, dir[0], dir[1]);
+                totalScore += ScorePattern(count, openEnds);
             }
 
             return totalScore;
+        }
+
+        private (int Count, bool OpenEnd) CountDirectionDetailed(int row, int col, int dRow, int dCol, string player)
+        {
+            int count = 0;
+            int r = row + dRow;
+            int c = col + dCol;
+
+            while (r >= 0 && r < Rows && c >= 0 && c < Columns)
+            {
+                if (_cellLookup.TryGetValue((r, c), out var neighbor))
+                {
+                    if (neighbor.Value == player)
+                    {
+                        count++;
+                        r += dRow;
+                        c += dCol;
+                        continue;
+                    }
+
+                    if (string.IsNullOrEmpty(neighbor.Value))
+                    {
+                        return (count, true);
+                    }
+
+                    return (count, false);
+                }
+
+                break;
+            }
+
+            return (count, false);
+        }
+
+        private (int Count, int OpenEnds) AnalyzeDirection(Cell cell, string player, int dRow, int dCol)
+        {
+            var forward = CountDirectionDetailed(cell.Row, cell.Col, dRow, dCol, player);
+            var backward = CountDirectionDetailed(cell.Row, cell.Col, -dRow, -dCol, player);
+
+            int totalCount = 1 + forward.Count + backward.Count;
+            int openEnds = 0;
+
+            if (forward.OpenEnd) openEnds++;
+            if (backward.OpenEnd) openEnds++;
+
+            return (totalCount, openEnds);
+        }
+
+        private int ScorePattern(int count, int openEnds)
+        {
+            if (count >= 5)
+            {
+                return WinningScore;
+            }
+
+            return (count, openEnds) switch
+            {
+                (4, 2) => 200_000,
+                (4, 1) => 50_000,
+                (3, 2) => 1_000,
+                (3, 1) => 200,
+                (2, 2) => 100,
+                (2, 1) => 30,
+                (1, 2) => 5,
+                (1, 1) => 2,
+                _ => 0
+            };
         }
 
         private int CountDirectionSimulate(int row, int col, int dRow, int dCol, string player)

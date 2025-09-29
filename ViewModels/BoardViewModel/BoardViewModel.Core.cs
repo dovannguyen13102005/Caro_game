@@ -13,6 +13,7 @@ namespace Caro_game.ViewModels
         private int _rows;
         private int _columns;
         private readonly bool _allowDynamicResize;
+        private readonly Random _random = new();
 
         public int Rows
         {

@@ -8,7 +8,7 @@ namespace Caro_game.Models
 {
     public class Cell : INotifyPropertyChanged
     {
-        private string _value;
+        private string _value = string.Empty;
         private bool _isWinningCell;
 
         public int Row { get; set; }
@@ -26,7 +26,7 @@ namespace Caro_game.Models
             set { _isWinningCell = value; OnPropertyChanged(); }
         }
 
-        public ICommand ClickCommand { get; set; }
+        public ICommand ClickCommand { get; }
 
         public Cell(int row, int col, BoardViewModel board)
         {
@@ -37,8 +37,8 @@ namespace Caro_game.Models
             ClickCommand = new RelayCommand(o => board.MakeMove(this));
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string name = null)
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

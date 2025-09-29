@@ -23,21 +23,21 @@ namespace Caro_game.ViewModels
         private static readonly Uri DarkThemeUri = new("Resources/Themes/DarkTheme.xaml", UriKind.Relative);
         private static readonly Uri LightThemeUri = new("Resources/Themes/LightTheme.xaml", UriKind.Relative);
 
-        private string _firstPlayer;
+        private string _firstPlayer = string.Empty;
         private BoardViewModel? _board;
         private bool _isAIEnabled;
-        private string _selectedAIMode;
-        private TimeOption _selectedTimeOption;
-        private string _selectedTheme;
-        private string _selectedPrimaryColor;
+        private string _selectedAIMode = string.Empty;
+        private TimeOption _selectedTimeOption = null!;
+        private string _selectedTheme = DefaultDarkThemeLabel;
+        private string _selectedPrimaryColor = string.Empty;
         private bool _isSoundEnabled;
         private bool _isGameActive;
         private bool _isGamePaused;
         private TimeSpan _remainingTime;
-        private string _statusMessage;
+        private string _statusMessage = string.Empty;
         private DispatcherTimer? _gameTimer;
         private TimeSpan _configuredDuration = TimeSpan.Zero;
-        private RuleOption _selectedRuleOption;
+        private RuleOption _selectedRuleOption = null!;
         private string _forbiddenCellsInput = string.Empty;
         private string _handicapInput = string.Empty;
         private bool _isBoardExpansionEnabled;

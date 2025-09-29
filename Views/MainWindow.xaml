@@ -55,13 +55,29 @@
                                                   SelectedItem="{Binding SelectedAIMode}"/>
                                     </StackPanel>
 
-                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0"
-                                                Visibility="{Binding IsProfessionalModeSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Luật chơi:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120"
                                                   ItemsSource="{Binding ProfessionalRules}"
-                                                  SelectedItem="{Binding SelectedProfessionalRule}"/>
+                                                  SelectedItem="{Binding SelectedProfessionalRule}"
+                                                  IsEnabled="{Binding IsProfessionalModeSelected}"
+                                                  ToolTip="Chỉ áp dụng cho chế độ Chuyên nghiệp"/>
                                     </StackPanel>
+                                    <TextBlock Text="(Chỉ áp dụng cho chế độ Chuyên nghiệp)"
+                                               Margin="0,4,0,0"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource MutedForegroundBrush}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsProfessionalModeSelected}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Thời gian (phút):" Width="120" Foreground="{DynamicResource DefaultForeground}"/>

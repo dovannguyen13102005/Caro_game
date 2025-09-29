@@ -41,7 +41,8 @@ public partial class BoardViewModel
                 return;
             }
 
-            if (Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
+            // ✅ Fix: Kiểm tra Cells trước khi gọi All
+            if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
             {
                 var aiMove = _engine.Begin();
                 PlaceAiIfValid(aiMove);
@@ -52,6 +53,7 @@ public partial class BoardViewModel
             NotifyProfessionalModeUnavailable($"Không thể khởi động AI Chuyên nghiệp.\nChi tiết: {ex}");
         }
     }
+
 
     private void NotifyProfessionalModeUnavailable(string message)
     {

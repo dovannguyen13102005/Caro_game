@@ -117,6 +117,8 @@ namespace Caro_game.ViewModels
                 return;
             }
 
+            var playerJustMoved = CurrentPlayer;
+
             cell.Value = CurrentPlayer;
             UpdateCandidatePositions(cell.Row, cell.Col);
 
@@ -151,7 +153,22 @@ namespace Caro_game.ViewModels
 
             CurrentPlayer = CurrentPlayer == "X" ? "O" : "X";
 
-            if (IsAIEnabled && CurrentPlayer == "O")
+            if (AIMode == "Bậc thầy" && IsAIEnabled && _engine != null && playerJustMoved == "X")
+            {
+                int lastX = cell.Col;
+                int lastY = cell.Row;
+                var engine = _engine;
+
+                Task.Run(() =>
+                {
+                    var aiMove = engine?.Turn(lastX, lastY);
+                    if (aiMove != null)
+                    {
+                        PlaceAiIfValid(aiMove);
+                    }
+                });
+            }
+            else if (IsAIEnabled && CurrentPlayer == "O")
             {
                 Task.Run(AIMove);
             }
@@ -164,33 +181,9 @@ namespace Caro_game.ViewModels
 
             Cell? bestCell = null;
 
-            if (AIMode == "Bậc thầy" && _engine != null)
+            if (AIMode == "Bậc thầy")
             {
-                string aiMove;
-
-                if (Cells.All(c => string.IsNullOrEmpty(c.Value)))
-                {
-                    aiMove = _engine.Begin(); // AI đi trước
-                }
-                else
-                {
-                    var last = Cells.LastOrDefault(c => c.Value == "X");
-                    aiMove = _engine.Turn(last.Col, last.Row);
-                }
-
-                if (!string.IsNullOrEmpty(aiMove))
-                {
-                    var parts = aiMove.Split(',');
-                    if (parts.Length == 2 &&
-                        int.TryParse(parts[0], out int aiX) &&
-                        int.TryParse(parts[1], out int aiY))
-                    {
-                        if (_cellLookup.TryGetValue((aiY, aiX), out var cell))
-                        {
-                            bestCell = cell;
-                        }
-                    }
-                }
+                return; // Đã xử lý riêng cho chế độ Bậc thầy
             }
             else if (AIMode == "Dễ")
             {
@@ -204,6 +197,32 @@ namespace Caro_game.ViewModels
             if (bestCell != null)
             {
                 Application.Current.Dispatcher.Invoke(() => MakeMove(bestCell));
+            }
+        }
+
+        private void PlaceAiIfValid(string aiMove)
+        {
+            if (string.IsNullOrWhiteSpace(aiMove))
+            {
+                return;
+            }
+
+            var parts = aiMove.Split(',');
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0], out int aiX) &&
+                int.TryParse(parts[1], out int aiY) &&
+                _cellLookup.TryGetValue((aiY, aiX), out var aiCell) &&
+                string.IsNullOrEmpty(aiCell.Value))
+            {
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null)
+                {
+                    dispatcher.Invoke(() => MakeMove(aiCell));
+                }
+                else
+                {
+                    MakeMove(aiCell);
+                }
             }
         }
 
@@ -431,8 +450,29 @@ namespace Caro_game.ViewModels
 
             try
             {
-                _engine = new EngineClient(enginePath);
-                _engine.StartBoard(Rows);
+                var engine = new EngineClient(enginePath);
+
+                bool ok = Rows == Columns
+                    ? engine.StartSquare(Rows)
+                    : engine.StartRect(Columns, Rows);
+
+                if (!ok)
+                {
+                    engine.Dispose();
+                    NotifyMasterModeUnavailable("AI không hỗ trợ kích thước bàn hiện tại. Hãy chọn bàn vuông (ví dụ 15x15, 20x20).");
+                    return;
+                }
+
+                _engine = engine;
+
+                if (IsAIEnabled && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
+                {
+                    Task.Run(() =>
+                    {
+                        var aiMove = engine.Begin();
+                        PlaceAiIfValid(aiMove);
+                    });
+                }
             }
             catch (Exception ex)
             {

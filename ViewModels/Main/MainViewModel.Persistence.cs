@@ -49,6 +49,22 @@ public partial class MainViewModel
                 }).ToList()
             };
 
+            var lastMove = Board.LastMovePosition;
+            if (lastMove.HasValue)
+            {
+                state.LastMoveRow = lastMove.Value.Row;
+                state.LastMoveCol = lastMove.Value.Col;
+            }
+
+            state.LastMovePlayer = Board.LastMovePlayer;
+
+            var lastHumanMove = Board.LastHumanMovePosition;
+            if (lastHumanMove.HasValue)
+            {
+                state.LastHumanMoveRow = lastHumanMove.Value.Row;
+                state.LastHumanMoveCol = lastHumanMove.Value.Col;
+            }
+
             var json = JsonSerializer.Serialize(state, new JsonSerializerOptions
             {
                 WriteIndented = true

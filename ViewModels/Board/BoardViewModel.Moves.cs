@@ -29,6 +29,20 @@ public partial class BoardViewModel
         int originalRow = cell.Row;
         int originalCol = cell.Col;
 
+        if (_lastMoveCell != null)
+        {
+            _lastMoveCell.IsLastMove = false;
+        }
+
+        _lastMoveCell = cell;
+        _lastMovePlayer = movingPlayer;
+        cell.IsLastMove = true;
+
+        if (movingPlayer == _humanSymbol)
+        {
+            _lastHumanMoveCell = cell;
+        }
+
         cell.Value = movingPlayer;
 
         if (!(IsAIEnabled && AIMode == "Chuyên nghiệp"))
@@ -131,7 +145,7 @@ public partial class BoardViewModel
         }
         else
         {
-            Task.Run(AIMove);
+            Task.Run(() => AIMoveAsync(lastMoveCell, lastMovePlayer));
         }
     }
 
@@ -143,12 +157,17 @@ public partial class BoardViewModel
         {
             cell.Value = string.Empty;
             cell.IsWinningCell = false;
+            cell.IsLastMove = false;
         }
 
         lock (_candidateLock)
         {
             _candidatePositions.Clear();
         }
+
+        _lastMoveCell = null;
+        _lastHumanMoveCell = null;
+        _lastMovePlayer = null;
 
         CurrentPlayer = _initialPlayer;
         IsPaused = false;
@@ -161,68 +180,108 @@ public partial class BoardViewModel
         TriggerAiTurnIfNeeded(null, null);
     }
 
-    private void AIMove()
+    private async Task AIMoveAsync(Cell? lastMoveCell, string? lastMovePlayer)
     {
-        if (!IsAIEnabled || IsPaused)
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null)
         {
             return;
         }
 
-        Cell? bestCell = null;
-
-        if (AIMode == "Dễ")
+        dispatcher.Invoke(() =>
         {
-            var lastPlayerMove = Cells.LastOrDefault(c => c.Value == _humanSymbol);
-            if (lastPlayerMove != null)
+            if (Application.Current.MainWindow?.DataContext is MainViewModel vm &&
+                vm.IsGameActive && !vm.IsGamePaused)
             {
-                var neighbors = Cells.Where(c =>
-                        string.IsNullOrEmpty(c.Value) &&
-                        Math.Abs(c.Row - lastPlayerMove.Row) <= 1 &&
-                        Math.Abs(c.Col - lastPlayerMove.Col) <= 1)
+                vm.SetStatus("AI đang suy nghĩ...");
+            }
+        });
+
+        try
+        {
+            await Task.Delay(AiThinkingDelay);
+
+            if (!IsAIEnabled || IsPaused || CurrentPlayer != _aiSymbol)
+            {
+                return;
+            }
+
+            Cell? bestCell = null;
+
+            if (AIMode == "Dễ")
+            {
+                Cell? reference = lastMovePlayer == _humanSymbol ? lastMoveCell : _lastHumanMoveCell;
+
+                if (reference != null)
+                {
+                    var neighbors = Cells.Where(c =>
+                            string.IsNullOrEmpty(c.Value) &&
+                            Math.Abs(c.Row - reference.Row) <= 1 &&
+                            Math.Abs(c.Col - reference.Col) <= 1)
+                        .ToList();
+
+                    if (neighbors.Count > 0)
+                    {
+                        bestCell = neighbors[Random.Shared.Next(neighbors.Count)];
+                    }
+                }
+
+                if (bestCell == null)
+                {
+                    var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                    if (emptyCells.Count > 0)
+                    {
+                        bestCell = emptyCells[Random.Shared.Next(emptyCells.Count)];
+                    }
+                }
+            }
+            else
+            {
+                var candidates = Cells
+                    .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
                     .ToList();
 
-                if (neighbors.Any())
+                if (!candidates.Any())
                 {
-                    bestCell = neighbors[new Random().Next(neighbors.Count)];
+                    candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                }
+
+                int bestScore = int.MinValue;
+
+                foreach (var candidate in candidates)
+                {
+                    int score = EvaluateCellAdvanced(candidate);
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestCell = candidate;
+                    }
                 }
             }
 
-            if (bestCell == null)
+            if (bestCell != null)
             {
-                var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
-                if (emptyCells.Any())
+                dispatcher.Invoke(() =>
                 {
-                    bestCell = emptyCells[new Random().Next(emptyCells.Count)];
-                }
+                    if (!IsAIEnabled || IsPaused || CurrentPlayer != _aiSymbol)
+                    {
+                        return;
+                    }
+
+                    ExecuteMove(bestCell, true);
+                });
             }
         }
-        else
+        finally
         {
-            var candidates = Cells
-                .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
-                .ToList();
-
-            if (!candidates.Any())
+            dispatcher.Invoke(() =>
             {
-                candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
-            }
-
-            int bestScore = int.MinValue;
-
-            foreach (var candidate in candidates)
-            {
-                int score = EvaluateCellAdvanced(candidate);
-                if (score > bestScore)
+                if (Application.Current.MainWindow?.DataContext is MainViewModel vm &&
+                    vm.IsGameActive && !vm.IsGamePaused)
                 {
-                    bestScore = score;
-                    bestCell = candidate;
+                    vm.SetStatus("Đang chơi");
                 }
-            }
-        }
-
-        if (bestCell != null)
-        {
-            Application.Current.Dispatcher.Invoke(() => ExecuteMove(bestCell, true));
+            });
         }
     }
 

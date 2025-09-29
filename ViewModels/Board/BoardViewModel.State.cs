@@ -17,6 +17,7 @@ public partial class BoardViewModel
         {
             cell.Value = string.Empty;
             cell.IsWinningCell = false;
+            cell.IsLastMove = false;
         }
 
         if (state.Cells != null)
@@ -29,6 +30,26 @@ public partial class BoardViewModel
                     cell.IsWinningCell = cellState.IsWinningCell;
                 }
             }
+        }
+
+        _lastMoveCell = null;
+        _lastHumanMoveCell = null;
+        _lastMovePlayer = null;
+
+        if (state.LastMoveRow.HasValue && state.LastMoveCol.HasValue &&
+            _cellLookup.TryGetValue((state.LastMoveRow.Value, state.LastMoveCol.Value), out var lastMove))
+        {
+            _lastMoveCell = lastMove;
+            _lastMovePlayer = string.IsNullOrWhiteSpace(state.LastMovePlayer)
+                ? null
+                : state.LastMovePlayer;
+            lastMove.IsLastMove = true;
+        }
+
+        if (state.LastHumanMoveRow.HasValue && state.LastHumanMoveCol.HasValue &&
+            _cellLookup.TryGetValue((state.LastHumanMoveRow.Value, state.LastHumanMoveCol.Value), out var lastHuman))
+        {
+            _lastHumanMoveCell = lastHuman;
         }
 
         if (!string.IsNullOrWhiteSpace(state.CurrentPlayer))

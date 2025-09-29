@@ -58,7 +58,7 @@
                                               IsChecked="{Binding IsAIEnabled}" Foreground="{DynamicResource DefaultForeground}"/>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                        <TextBlock Text="Chế độ:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
+                                        <TextBlock Text="Cấp độ:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120"
                                                   ItemsSource="{Binding AIModes}"
                                                   SelectedItem="{Binding SelectedAIMode}"/>

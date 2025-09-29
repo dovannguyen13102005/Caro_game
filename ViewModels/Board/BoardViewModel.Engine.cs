@@ -46,7 +46,12 @@ public partial class BoardViewModel
                 return;
             }
 
-            // ✅ Fix: Kiểm tra Cells trước khi gọi All
+            // ⚡ Gửi luật Renju cho Yixin
+            if (GameRule == GameRule.Renju)
+            {
+                _engine.SendRaw("RULE renju");
+            }
+
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == "O")
             {
                 var aiMove = _engine.Begin();
@@ -58,6 +63,7 @@ public partial class BoardViewModel
             NotifyProfessionalModeUnavailable($"Không thể khởi động AI Chuyên nghiệp.\nChi tiết: {ex}");
         }
     }
+
 
 
     private void NotifyProfessionalModeUnavailable(string message)

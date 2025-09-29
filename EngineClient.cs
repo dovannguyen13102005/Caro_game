@@ -81,6 +81,13 @@ namespace Caro_game
 
             return string.Empty;
         }
+        public void SendRaw(string cmd)
+        {
+            if (_input == null) return;
+            Log("[SendRaw] " + cmd);
+            _input.WriteLine(cmd);
+            _input.Flush();
+        }
 
         public void StartSquare(int size)
         {
@@ -131,5 +138,7 @@ namespace Caro_game
             _output = null;
             _process = null;
         }
+        
+
     }
 }

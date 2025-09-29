@@ -23,16 +23,8 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
-        if (GameRule == GameRule.Renju && movingPlayer == "X")
-        {
-            if (!IsRenjuMoveLegal(cell.Row, cell.Col, out var violationMessage))
-            {
-                cell.Value = string.Empty;
-                MessageBox.Show(violationMessage, "Luật Renju", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-        }
-
+        // ✅ Nếu Renju → để Yixin xử lý luật, không cần check thủ công
+        // Nếu là freestyle (Rapfi) thì chỉ cần check thắng ≥ 5
         if (!(IsAIEnabled && AIMode == "Chuyên nghiệp"))
         {
             ExpandBoardIfNeeded(originalRow, originalCol);
@@ -239,10 +231,7 @@ public partial class BoardViewModel
         {
             for (int dc = -range; dc <= range; dc++)
             {
-                if (dr == 0 && dc == 0)
-                {
-                    continue;
-                }
+                if (dr == 0 && dc == 0) continue;
 
                 int r = row + dr;
                 int c = col + dc;
@@ -342,6 +331,10 @@ public partial class BoardViewModel
 
     private bool CheckWin(int row, int col, string player)
     {
+        // Nếu Renju thì Yixin sẽ tự xử lý luật
+        if (GameRule == GameRule.Renju)
+            return false;
+
         int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
 
         foreach (var dir in directions)
@@ -350,14 +343,7 @@ public partial class BoardViewModel
             count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
             count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
 
-            if (GameRule == GameRule.Renju && player == "X")
-            {
-                if (count == 5)
-                {
-                    return true;
-                }
-            }
-            else if (count >= 5)
+            if (count >= 5)
             {
                 return true;
             }
@@ -414,199 +400,4 @@ public partial class BoardViewModel
 
         return list;
     }
-
-    private bool IsRenjuMoveLegal(int row, int col, out string message)
-    {
-        if (CreatesOverline(row, col, "X"))
-        {
-            message = "Nước đi không hợp lệ: quân X bị cấm tạo chuỗi 6 quân trở lên (overline).";
-            return false;
-        }
-
-        int openFourCount = CountOpenFours(row, col, "X");
-        if (openFourCount >= 2)
-        {
-            message = "Nước đi không hợp lệ: quân X bị cấm tạo cùng lúc từ hai thế tứ mở (double-four).";
-            return false;
-        }
-
-        int openThreeCount = CountOpenThrees(row, col, "X");
-        if (openThreeCount >= 2)
-        {
-            message = "Nước đi không hợp lệ: quân X bị cấm tạo cùng lúc từ hai thế tam mở (double-three).";
-            return false;
-        }
-
-        message = string.Empty;
-        return true;
-    }
-
-    private bool CreatesOverline(int row, int col, string player)
-    {
-        foreach (var direction in RenjuDirections)
-        {
-            int count = 1;
-            count += CountDirectionSimulate(row, col, direction.Row, direction.Col, player);
-            count += CountDirectionSimulate(row, col, -direction.Row, -direction.Col, player);
-
-            if (count > 5)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private int CountOpenFours(int row, int col, string player)
-    {
-        var segments = new HashSet<string>();
-
-        foreach (var direction in RenjuDirections)
-        {
-            var coordinates = BuildLineCoordinates(row, col, direction.Row, direction.Col, 5);
-
-            for (int length = 6; length <= 7; length++)
-            {
-                if (coordinates.Count < length)
-                {
-                    continue;
-                }
-
-                for (int start = 0; start <= coordinates.Count - length; start++)
-                {
-                    var segment = coordinates.GetRange(start, length);
-
-                    if (!SegmentContains(segment, row, col) || !EndsEmpty(segment))
-                    {
-                        continue;
-                    }
-
-                    var interior = segment.Skip(1).Take(segment.Count - 2).ToList();
-
-                    if (length == 6)
-                    {
-                        if (interior.All(p => GetCellValue(p.Row, p.Col) == player))
-                        {
-                            segments.Add(GetSegmentKey(segment));
-                        }
-                    }
-                    else
-                    {
-                        int playerCount = interior.Count(p => GetCellValue(p.Row, p.Col) == player);
-                        int emptyCount = interior.Count(p => IsCellEmpty(p.Row, p.Col));
-
-                        if (playerCount == interior.Count - 1 && emptyCount == 1)
-                        {
-                            segments.Add(GetSegmentKey(segment));
-                        }
-                    }
-                }
-            }
-        }
-
-        return segments.Count;
-    }
-
-    private int CountOpenThrees(int row, int col, string player)
-    {
-        var segments = new HashSet<string>();
-
-        foreach (var direction in RenjuDirections)
-        {
-            var coordinates = BuildLineCoordinates(row, col, direction.Row, direction.Col, 5);
-
-            if (coordinates.Count >= 5)
-            {
-                for (int start = 0; start <= coordinates.Count - 5; start++)
-                {
-                    var segment = coordinates.GetRange(start, 5);
-
-                    if (!SegmentContains(segment, row, col) || !EndsEmpty(segment))
-                    {
-                        continue;
-                    }
-
-                    var interior = segment.Skip(1).Take(segment.Count - 2).ToList();
-
-                    if (interior.All(p => GetCellValue(p.Row, p.Col) == player))
-                    {
-                        segments.Add(GetSegmentKey(segment));
-                    }
-                }
-            }
-
-            if (coordinates.Count >= 6)
-            {
-                for (int start = 0; start <= coordinates.Count - 6; start++)
-                {
-                    var segment = coordinates.GetRange(start, 6);
-
-                    if (!SegmentContains(segment, row, col) || !EndsEmpty(segment))
-                    {
-                        continue;
-                    }
-
-                    var interior = segment.Skip(1).Take(segment.Count - 2).ToList();
-                    int playerCount = interior.Count(p => GetCellValue(p.Row, p.Col) == player);
-                    int emptyCount = interior.Count(p => IsCellEmpty(p.Row, p.Col));
-
-                    if (playerCount == interior.Count - 1 && emptyCount == 1)
-                    {
-                        segments.Add(GetSegmentKey(segment));
-                    }
-                }
-            }
-        }
-
-        return segments.Count;
-    }
-
-    private static readonly (int Row, int Col)[] RenjuDirections =
-    {
-        (0, 1),
-        (1, 0),
-        (1, 1),
-        (1, -1)
-    };
-
-    private List<(int Row, int Col)> BuildLineCoordinates(int row, int col, int dRow, int dCol, int range)
-    {
-        var result = new List<(int Row, int Col)>();
-
-        for (int offset = -range; offset <= range; offset++)
-        {
-            int r = row + offset * dRow;
-            int c = col + offset * dCol;
-
-            if (r >= 0 && r < Rows && c >= 0 && c < Columns)
-            {
-                result.Add((r, c));
-            }
-        }
-
-        return result;
-    }
-
-    private bool SegmentContains(List<(int Row, int Col)> segment, int row, int col)
-        => segment.Any(p => p.Row == row && p.Col == col);
-
-    private bool EndsEmpty(List<(int Row, int Col)> segment)
-        => IsCellEmpty(segment[0].Row, segment[0].Col) && IsCellEmpty(segment[^1].Row, segment[^1].Col);
-
-    private bool IsCellEmpty(int row, int col)
-        => string.IsNullOrEmpty(GetCellValue(row, col));
-
-    private string GetCellValue(int row, int col)
-    {
-        if (_cellLookup.TryGetValue((row, col), out var cell))
-        {
-            return cell.Value;
-        }
-
-        return string.Empty;
-    }
-
-    private string GetSegmentKey(List<(int Row, int Col)> segment)
-        => string.Join("|", segment.Select(p => $"{p.Row},{p.Col}"));
 }

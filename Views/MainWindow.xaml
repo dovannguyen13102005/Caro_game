@@ -163,26 +163,47 @@
                     </Border>
                 </TabItem>
 
-                <!-- Hướng dẫn -->
                 <TabItem Header="📖  Hướng dẫn">
-                    <Border Background="{DynamicResource SectionBackgroundBrush}" Margin="-4" Padding="16">
-                        <ScrollViewer>
-                            <StackPanel>
-                                <TextBlock Text="Luật chơi cơ bản" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
-                                <Separator Margin="0,8"/>
-                                <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc, hoặc chéo." Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Bàn cờ: khởi tạo 30×30 và sẽ tự mở rộng khi đánh gần rìa." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Lượt đi: X và O thay phiên nhau." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Thắng: khi một bên có 5 quân liên tiếp." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
-                                <Separator Margin="0,8"/>
-                                <TextBlock Text="Mẹo nhanh" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentForegroundBrush}" Margin="0,6,0,0"/>
-                                <TextBlock Text="• Ưu tiên trung tâm, mở rộng theo hai hướng." Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Chặn nước 4 của đối thủ ngay." Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Tạo thế 2 hướng mở để ép thắng." Foreground="{DynamicResource DefaultForeground}"/>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </Border>
-                </TabItem>
+    <Border Background="{DynamicResource SectionBackgroundBrush}" Margin="-4" Padding="16">
+        <ScrollViewer>
+            <StackPanel>
+                <TextBlock Text="Luật chơi Caro (Gomoku / Renju)" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
+                <Separator Margin="0,8"/>
+
+                <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc hoặc chéo." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="• Lượt đi: X luôn đi trước, O đi sau." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="• Bàn cờ: mặc định 15×15 (chuẩn thi đấu quốc tế), có thể mở rộng hoặc thay đổi tùy chế độ." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+
+                <Separator Margin="0,8"/>
+                <TextBlock Text="Các biến thể luật" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentForegroundBrush}" Margin="0,6,0,0"/>
+
+                <TextBlock Text="• Freestyle (Tự do):" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}" Margin="0,4,0,0"/>
+                <TextBlock Text="   - Xếp được 5 hoặc nhiều hơn quân liên tiếp đều thắng." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="   - Không có luật cấm, đây là kiểu chơi phổ biến nhất ngoài đời." Foreground="{DynamicResource DefaultForeground}"/>
+
+                <TextBlock Text="• Standard Gomoku (Chuẩn):" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}" Margin="0,6,0,0"/>
+                <TextBlock Text="   - Chỉ đúng 5 quân liên tiếp mới thắng." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="   - Nếu tạo hơn 5 quân (6, 7…), không tính thắng." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="   - Không có luật cấm đặc biệt." Foreground="{DynamicResource DefaultForeground}"/>
+
+                <TextBlock Text="• Renju (Quốc tế):" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}" Margin="0,6,0,0"/>
+                <TextBlock Text="   - X phải tuân theo luật cấm để đảm bảo công bằng." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="   - Cấm overline: không được xếp 6 quân trở lên." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="   - Cấm double-three: không được tạo đồng thời 2 thế tam mở." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="   - Cấm double-four: không được tạo đồng thời 2 thế tứ." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="   - O không bị cấm, chỉ cần đạt 5 quân là thắng." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="   - Đây là luật chính thức trong các giải đấu quốc tế." Foreground="{DynamicResource DefaultForeground}"/>
+
+                <Separator Margin="0,8"/>
+                <TextBlock Text="Mẹo nhanh" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentForegroundBrush}" Margin="0,6,0,0"/>
+                <TextBlock Text="• Ưu tiên đi gần trung tâm và giữ thế mở hai đầu." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="• Chặn ngay khi đối thủ có 4 quân liên tiếp." Foreground="{DynamicResource DefaultForeground}"/>
+                <TextBlock Text="• Tìm cách tạo hai mối đe dọa cùng lúc để ép thắng." Foreground="{DynamicResource DefaultForeground}"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</TabItem>
+
 
                 <!-- Cài đặt -->
                 <TabItem Header="⚙️  Cài đặt">

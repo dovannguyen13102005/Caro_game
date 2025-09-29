@@ -4,6 +4,7 @@ using Caro_game.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -105,8 +106,7 @@ namespace Caro_game.ViewModels
 
             if (AIMode == "Bậc thầy")
             {
-                _engine = new EngineClient(@"AI\pbrain-rapfi-windows-avx2.exe");
-                _engine.StartBoard(Rows);
+                TryInitializeMasterEngine();
             }
         }
 
@@ -407,9 +407,7 @@ namespace Caro_game.ViewModels
 
             if (AIMode == "Bậc thầy")
             {
-                DisposeEngine();
-                _engine = new EngineClient(@"AI\pbrain-rapfi-windows-avx2.exe");
-                _engine.StartBoard(Rows);
+                TryInitializeMasterEngine();
             }
         }
 
@@ -417,6 +415,49 @@ namespace Caro_game.ViewModels
         {
             IsPaused = true;
         }
+
+        private void TryInitializeMasterEngine()
+        {
+            DisposeEngine();
+
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            var enginePath = Path.Combine(baseDirectory, "AI", "pbrain-rapfi-windows-avx2.exe");
+
+            if (!File.Exists(enginePath))
+            {
+                NotifyMasterModeUnavailable("Không tìm thấy tệp AI cần thiết cho chế độ Bậc thầy. AI sẽ bị tắt và ứng dụng sẽ chuyển về chế độ Khó.");
+                return;
+            }
+
+            try
+            {
+                _engine = new EngineClient(enginePath);
+                _engine.StartBoard(Rows);
+            }
+            catch (Exception ex)
+            {
+                NotifyMasterModeUnavailable($"Không thể khởi động AI chế độ Bậc thầy. AI sẽ bị tắt và ứng dụng sẽ chuyển về chế độ Khó.\nChi tiết: {ex.Message}");
+            }
+        }
+
+        private void NotifyMasterModeUnavailable(string message)
+        {
+            IsAIEnabled = false;
+            AIMode = "Khó";
+
+            if (Application.Current?.Dispatcher != null)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show(message, "Caro", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
+            }
+            else
+            {
+                MessageBox.Show(message, "Caro", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
         public void DisposeEngine()
         {
             _engine?.Dispose();

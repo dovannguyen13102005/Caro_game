@@ -271,7 +271,7 @@ namespace Caro_game.ViewModels
         public MainViewModel()
         {
             RowOptions = new ObservableCollection<int> { 15, 20, 25, 30, 40, 50, 75, 100 };
-            ColumnOptions = new ObservableCollection<int> { 18, 25, 30, 35, 40, 50, 75, 100 };
+            ColumnOptions = new ObservableCollection<int> { 15, 20, 25, 30, 40, 50, 75, 100 };
             Players = new ObservableCollection<string> { "X (Bạn)", "O" };
             AIModes = new ObservableCollection<string> { "Dễ", "Khó", "Bậc thầy" };
             TimeOptions = new ObservableCollection<TimeOption>

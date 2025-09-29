@@ -1,4 +1,3 @@
-using Caro_game.AI;
 using Caro_game.Commands;
 using Caro_game.Models;
 using System;
@@ -21,6 +20,9 @@ namespace Caro_game.ViewModels
         private readonly HashSet<(int Row, int Col)> _candidatePositions;
         private readonly object _candidateLock = new();
         private readonly string _initialPlayer;
+        // chọn giữa BOARD và TURN
+        private bool UseBoardMode = false; // false = dùng TURN (nhanh), true = dùng BOARD (an toàn)
+
 
         private string _currentPlayer;
         public string CurrentPlayer
@@ -113,9 +115,7 @@ namespace Caro_game.ViewModels
         public void MakeMove(Cell cell)
         {
             if (IsPaused || !string.IsNullOrEmpty(cell.Value))
-            {
                 return;
-            }
 
             cell.Value = CurrentPlayer;
             UpdateCandidatePositions(cell.Row, cell.Col);
@@ -149,13 +149,68 @@ namespace Caro_game.ViewModels
                 return;
             }
 
+            // Đổi lượt
             CurrentPlayer = CurrentPlayer == "X" ? "O" : "X";
 
-            if (IsAIEnabled && CurrentPlayer == "O")
+            // Nếu là lượt AI
+            if (IsAIEnabled && CurrentPlayer == "O" && AIMode == "Bậc thầy" && _engine != null)
             {
+                try
+                {
+                    string aiMove = string.Empty;
+
+                    if (UseBoardMode)
+                    {
+                        // --- Dùng BOARD ---
+                        var moves = Cells
+                            .Where(c => !string.IsNullOrEmpty(c.Value))
+                            .Select(c => (c.Col, c.Row, c.Value == "X" ? 1 : 2))
+                            .ToList();
+
+                        aiMove = _engine.SendBoard(moves);
+                        Console.WriteLine("[Rapfi] BOARD -> " + aiMove);
+                    }
+                    else
+                    {
+                        // --- Dùng TURN ---
+                        if (Cells.All(c => string.IsNullOrEmpty(c.Value)))
+                        {
+                            aiMove = _engine.Begin(); // nếu AI đi trước
+                        }
+                        else
+                        {
+                            aiMove = _engine.Turn(cell.Col, cell.Row); // báo nước đi vừa rồi
+                        }
+                        Console.WriteLine("[Rapfi] TURN -> " + aiMove);
+                    }
+
+                    if (!string.IsNullOrEmpty(aiMove))
+                    {
+                        var parts = aiMove.Split(',');
+                        if (parts.Length == 2 &&
+                            int.TryParse(parts[0], out int aiX) &&
+                            int.TryParse(parts[1], out int aiY))
+                        {
+                            if (_cellLookup.TryGetValue((aiY, aiX), out var aiCell))
+                            {
+                                Application.Current.Dispatcher.Invoke(() => MakeMove(aiCell));
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"AI engine error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    DisposeEngine();
+                }
+            }
+            else if (IsAIEnabled && CurrentPlayer == "O")
+            {
+                // AI Dễ / Khó
                 Task.Run(AIMove);
             }
         }
+
 
         private void AIMove()
         {
@@ -170,11 +225,15 @@ namespace Caro_game.ViewModels
 
                 if (Cells.All(c => string.IsNullOrEmpty(c.Value)))
                 {
-                    aiMove = _engine.Begin(); // AI đi trước
+                    // Nếu AI đi trước
+                    aiMove = _engine.Begin();
                 }
                 else
                 {
+                    // Báo nước đi vừa rồi của người chơi
                     var last = Cells.LastOrDefault(c => c.Value == "X");
+                    if (last == null) return;
+
                     aiMove = _engine.Turn(last.Col, last.Row);
                 }
 
@@ -187,18 +246,57 @@ namespace Caro_game.ViewModels
                     {
                         if (_cellLookup.TryGetValue((aiY, aiX), out var cell))
                         {
-                            bestCell = cell;
+                            Application.Current.Dispatcher.Invoke(() => MakeMove(cell));
                         }
                     }
                 }
             }
+
             else if (AIMode == "Dễ")
             {
-                // Giữ code AI dễ như bạn đã có
+                var lastPlayerMove = Cells.LastOrDefault(c => c.Value == "X");
+                if (lastPlayerMove != null)
+                {
+
+                    var neighbors = Cells.Where(c =>
+                        string.IsNullOrEmpty(c.Value) &&
+                        Math.Abs(c.Row - lastPlayerMove.Row) <= 1 &&
+                        Math.Abs(c.Col - lastPlayerMove.Col) <= 1).ToList();
+
+                    if (neighbors.Any())
+                    {
+                        bestCell = neighbors[new Random().Next(neighbors.Count)];
+                    }
+                }
+
+
+                if (bestCell == null)
+                {
+                    var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                    if (emptyCells.Any())
+                        bestCell = emptyCells[new Random().Next(emptyCells.Count)];
+                }
             }
             else // Khó
             {
-                // Giữ code AI khó như bạn đã có
+                var candidates = Cells
+                    .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
+                    .ToList();
+
+                if (!candidates.Any())
+                    candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+
+                int bestScore = int.MinValue;
+
+                foreach (var cell in candidates)
+                {
+                    int score = EvaluateCellAdvanced(cell);
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestCell = cell;
+                    }
+                }
             }
 
             if (bestCell != null)

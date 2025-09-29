@@ -459,7 +459,7 @@ namespace Caro_game.ViewModels
                 if (!ok)
                 {
                     engine.Dispose();
-                    NotifyMasterModeUnavailable("AI không hỗ trợ kích thước bàn hiện tại. Hãy chọn bàn vuông (ví dụ 15x15, 20x20).");
+                    NotifyMasterModeUnavailable("AI không hỗ trợ kích thước bàn hiện tại. Hãy chọn bàn vuông (ví dụ 15x15, 20x20, 30x30, 50x50).");
                     return;
                 }
 

@@ -95,10 +95,7 @@ namespace Caro_game.ViewModels
             {
                 int r = i / columns;
                 int c = i % columns;
-                var cell = new Cell(r, c, this)
-                {
-                    ClickCommand = new RelayCommand(_ => MakeMove(cell))
-                };
+                var cell = new Cell(r, c, this);
                 Cells.Add(cell);
                 _cellLookup[(r, c)] = cell;
             }

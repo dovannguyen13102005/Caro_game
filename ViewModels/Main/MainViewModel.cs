@@ -22,6 +22,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private bool _isAIEnabled;
     private string _selectedAIMode;
     private TimeOption _selectedTimeOption;
+    private RuleOption _selectedRuleOption;
     private string _selectedTheme;
     private bool _isSoundEnabled;
     private bool _isGameActive;
@@ -35,6 +36,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<string> Players { get; }
     public ObservableCollection<string> AIModes { get; }
     public ObservableCollection<TimeOption> TimeOptions { get; }
+    public ObservableCollection<RuleOption> RuleOptions { get; }
 
     public ObservableCollection<string> Themes { get; } =
         new ObservableCollection<string> { DefaultDarkThemeLabel, "Light" };
@@ -95,6 +97,19 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (_selectedAIMode != value)
             {
                 _selectedAIMode = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public RuleOption SelectedRuleOption
+    {
+        get => _selectedRuleOption;
+        set
+        {
+            if (_selectedRuleOption != value)
+            {
+                _selectedRuleOption = value;
                 OnPropertyChanged();
             }
         }
@@ -224,6 +239,12 @@ public partial class MainViewModel : INotifyPropertyChanged
             "Ngẫu nhiên"
         };
         AIModes = new ObservableCollection<string> { "Dễ", "Khó", "Chuyên nghiệp" };
+        RuleOptions = new ObservableCollection<RuleOption>
+        {
+            new RuleOption(GameRule.Freestyle, "Freestyle (Tự do)"),
+            new RuleOption(GameRule.Standard, "Gomoku chuẩn"),
+            new RuleOption(GameRule.Renju, "Renju (quốc tế)")
+        };
         TimeOptions = new ObservableCollection<TimeOption>
         {
             new TimeOption(0, "Không giới hạn"),
@@ -239,6 +260,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         FirstPlayer = Players[0];
         IsAIEnabled = true;
         SelectedAIMode = "Khó";
+        SelectedRuleOption = RuleOptions[0];
 
         SelectedTheme = DefaultDarkThemeLabel;
         IsSoundEnabled = true;

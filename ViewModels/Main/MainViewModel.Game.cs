@@ -25,7 +25,9 @@ public partial class MainViewModel
         string startingSymbol = "X";
         string humanSymbol = playerStarts ? startingSymbol : "O";
 
-        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol)
+        var selectedRule = SelectedRuleOption?.Rule ?? GameRule.Freestyle;
+
+        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol, selectedRule)
         {
             IsAIEnabled = IsAIEnabled
         };
@@ -33,6 +35,15 @@ public partial class MainViewModel
         Board = board;
 
         board.TryStartAITurn();
+
+        if (isProfessionalMode)
+        {
+            MessageBox.Show(
+                $"Chế độ Chuyên nghiệp đang sử dụng engine để kiểm tra luật {SelectedRuleOption?.Display ?? "đã chọn"}.",
+                "Thông báo",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
 
         _configuredDuration = SelectedTimeOption.Minutes > 0
             ? TimeSpan.FromMinutes(SelectedTimeOption.Minutes)
@@ -43,7 +54,9 @@ public partial class MainViewModel
         IsGameActive = true;
         IsGamePaused = false;
         board.IsPaused = false;
-        StatusMessage = "Đang chơi";
+        StatusMessage = isProfessionalMode
+            ? $"Chuyên nghiệp - engine kiểm tra luật {SelectedRuleOption?.Display ?? string.Empty}"
+            : "Đang chơi";
     }
 
     private void TogglePause()

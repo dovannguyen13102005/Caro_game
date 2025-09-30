@@ -26,6 +26,21 @@ public partial class BoardViewModel
         }
 
         var movingPlayer = CurrentPlayer;
+
+        if (!IsMoveLegal(cell, movingPlayer, out var violation))
+        {
+            if (!isAiMove)
+            {
+                var message = string.IsNullOrWhiteSpace(violation)
+                    ? "Nước đi không hợp lệ theo luật hiện tại."
+                    : violation!;
+
+                MessageBox.Show(message, "Nước đi không hợp lệ", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+
+            return;
+        }
+
         int originalRow = cell.Row;
         int originalCol = cell.Col;
 
@@ -218,6 +233,7 @@ public partial class BoardViewModel
                             string.IsNullOrEmpty(c.Value) &&
                             Math.Abs(c.Row - reference.Row) <= 1 &&
                             Math.Abs(c.Col - reference.Col) <= 1)
+                        .Where(c => IsMoveLegal(c, _aiSymbol, out _))
                         .ToList();
 
                     if (neighbors.Count > 0)
@@ -228,7 +244,9 @@ public partial class BoardViewModel
 
                 if (bestCell == null)
                 {
-                    var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                    var emptyCells = Cells
+                        .Where(c => string.IsNullOrEmpty(c.Value) && IsMoveLegal(c, _aiSymbol, out _))
+                        .ToList();
                     if (emptyCells.Count > 0)
                     {
                         bestCell = emptyCells[Random.Shared.Next(emptyCells.Count)];
@@ -238,12 +256,14 @@ public partial class BoardViewModel
             else
             {
                 var candidates = Cells
-                    .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
+                    .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2) && IsMoveLegal(c, _aiSymbol, out _))
                     .ToList();
 
                 if (!candidates.Any())
                 {
-                    candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                    candidates = Cells
+                        .Where(c => string.IsNullOrEmpty(c.Value) && IsMoveLegal(c, _aiSymbol, out _))
+                        .ToList();
                 }
 
                 int bestScore = int.MinValue;
@@ -412,15 +432,186 @@ public partial class BoardViewModel
         return count;
     }
 
+    private bool IsMoveLegal(Cell cell, string player, out string? violation)
+    {
+        violation = null;
+
+        if (!string.IsNullOrEmpty(cell.Value))
+        {
+            violation = "Ô này đã được đánh.";
+            return false;
+        }
+
+        if (_rule != GameRule.Renju || !player.Equals("X", StringComparison.OrdinalIgnoreCase) ||
+            (IsAIEnabled && AIMode == "Chuyên nghiệp"))
+        {
+            return true;
+        }
+
+        var originalValue = cell.Value;
+        cell.Value = player;
+
+        try
+        {
+            if (CreatesLineLongerThanFive(cell.Row, cell.Col, player))
+            {
+                violation = "Luật Renju: cấm overline (6 quân trở lên).";
+                return false;
+            }
+
+            int fours = CountOpenFours(cell.Row, cell.Col, player);
+            if (fours >= 2)
+            {
+                violation = "Luật Renju: cấm double-four (tạo hai thế 4 cùng lúc).";
+                return false;
+            }
+
+            int threes = CountOpenThrees(cell.Row, cell.Col, player);
+            if (threes >= 2)
+            {
+                violation = "Luật Renju: cấm double-three (tạo hai thế 3 mở).";
+                return false;
+            }
+        }
+        finally
+        {
+            cell.Value = originalValue;
+        }
+
+        return true;
+    }
+
+    private bool CreatesLineLongerThanFive(int row, int col, string player)
+    {
+        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
+
+        foreach (var dir in directions)
+        {
+            int forward = CountInDirection(row, col, dir[0], dir[1], player);
+            int backward = CountInDirection(row, col, -dir[0], -dir[1], player);
+            int total = forward + 1 + backward;
+
+            if (total > 5)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int CountOpenFours(int row, int col, string player)
+    {
+        int count = 0;
+        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
+
+        foreach (var dir in directions)
+        {
+            int forward = CountInDirection(row, col, dir[0], dir[1], player);
+            int backward = CountInDirection(row, col, -dir[0], -dir[1], player);
+            int total = forward + 1 + backward;
+
+            if (total == 4)
+            {
+                bool forwardOpen = IsEndOpen(row, col, dir[0], dir[1], forward);
+                bool backwardOpen = IsEndOpen(row, col, -dir[0], -dir[1], backward);
+
+                if (forwardOpen || backwardOpen)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private int CountOpenThrees(int row, int col, string player)
+    {
+        int count = 0;
+        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
+
+        foreach (var dir in directions)
+        {
+            int forward = CountInDirection(row, col, dir[0], dir[1], player);
+            int backward = CountInDirection(row, col, -dir[0], -dir[1], player);
+            int total = forward + 1 + backward;
+
+            if (total == 3)
+            {
+                bool forwardOpen = IsEndOpen(row, col, dir[0], dir[1], forward);
+                bool backwardOpen = IsEndOpen(row, col, -dir[0], -dir[1], backward);
+
+                if (forwardOpen && backwardOpen)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private int CountInDirection(int row, int col, int dRow, int dCol, string player)
+    {
+        int count = 0;
+        int r = row + dRow;
+        int c = col + dCol;
+
+        while (_cellLookup.TryGetValue((r, c), out var neighbor) && neighbor.Value == player)
+        {
+            count++;
+            r += dRow;
+            c += dCol;
+        }
+
+        return count;
+    }
+
+    private bool IsEndOpen(int row, int col, int dRow, int dCol, int sameCount)
+    {
+        int endRow = row + dRow * (sameCount + 1);
+        int endCol = col + dCol * (sameCount + 1);
+
+        if (_cellLookup.TryGetValue((endRow, endCol), out var cell))
+        {
+            return string.IsNullOrEmpty(cell.Value);
+        }
+
+        return false;
+    }
+
     private bool CheckWin(int row, int col, string player)
     {
         int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
 
         foreach (var dir in directions)
         {
-            int count = 1;
-            count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
-            count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
+            int forward = CountDirectionSimulate(row, col, dir[0], dir[1], player);
+            int backward = CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
+            int count = 1 + forward + backward;
+
+            if (_rule == GameRule.Standard)
+            {
+                if (count == 5)
+                {
+                    bool forwardExtended = HasAdditionalStone(row, col, dir[0], dir[1], forward, player);
+                    bool backwardExtended = HasAdditionalStone(row, col, -dir[0], -dir[1], backward, player);
+
+                    if (!(forwardExtended || backwardExtended))
+                    {
+                        return true;
+                    }
+                }
+
+                continue;
+            }
+
+            if (_rule == GameRule.Renju && player.Equals("X", StringComparison.OrdinalIgnoreCase) && count > 5 &&
+                !(IsAIEnabled && AIMode == "Chuyên nghiệp"))
+            {
+                continue;
+            }
 
             if (count >= 5)
             {
@@ -429,6 +620,14 @@ public partial class BoardViewModel
         }
 
         return false;
+    }
+
+    private bool HasAdditionalStone(int row, int col, int dRow, int dCol, int contiguousCount, string player)
+    {
+        int checkRow = row + dRow * (contiguousCount + 1);
+        int checkCol = col + dCol * (contiguousCount + 1);
+
+        return _cellLookup.TryGetValue((checkRow, checkCol), out var cell) && cell.Value == player;
     }
 
     private void HighlightWinningCells(int row, int col, string player)

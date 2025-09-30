@@ -46,6 +46,7 @@ public partial class BoardViewModel : BaseViewModel
     private readonly string _initialPlayer;
     private readonly string _humanSymbol;
     private readonly string _aiSymbol;
+    private readonly GameRule _rule;
     private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromMilliseconds(600);
     private Cell? _lastMoveCell;
     private Cell? _lastHumanMoveCell;
@@ -119,6 +120,7 @@ public partial class BoardViewModel : BaseViewModel
     public string InitialPlayer => _initialPlayer;
     public string HumanSymbol => _humanSymbol;
     public string AISymbol => _aiSymbol;
+    public GameRule Rule => _rule;
     public (int Row, int Col)? LastMovePosition => _lastMoveCell != null
         ? (_lastMoveCell.Row, _lastMoveCell.Col)
         : null;
@@ -131,11 +133,12 @@ public partial class BoardViewModel : BaseViewModel
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
+    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null, GameRule rule = GameRule.Freestyle)
     {
         Rows = rows;
         Columns = columns;
         AIMode = aiMode;
+        _rule = rule;
         CurrentPlayer = firstPlayer.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 
         _initialPlayer = CurrentPlayer;

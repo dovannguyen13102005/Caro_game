@@ -44,6 +44,12 @@ public partial class BoardViewModel : BaseViewModel
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
     private readonly object _candidateLock = new();
     private readonly string _initialPlayer;
+    private readonly string _humanSymbol;
+    private readonly string _aiSymbol;
+    private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromMilliseconds(600);
+    private Cell? _lastMoveCell;
+    private Cell? _lastHumanMoveCell;
+    private string? _lastMovePlayer;
 
     private string _currentPlayer;
     public string CurrentPlayer
@@ -111,19 +117,32 @@ public partial class BoardViewModel : BaseViewModel
     }
 
     public string InitialPlayer => _initialPlayer;
+    public string HumanSymbol => _humanSymbol;
+    public string AISymbol => _aiSymbol;
+    public (int Row, int Col)? LastMovePosition => _lastMoveCell != null
+        ? (_lastMoveCell.Row, _lastMoveCell.Col)
+        : null;
+    public (int Row, int Col)? LastHumanMovePosition => _lastHumanMoveCell != null
+        ? (_lastHumanMoveCell.Row, _lastHumanMoveCell.Col)
+        : null;
+    public string? LastMovePlayer => _lastMovePlayer;
 
     private EngineClient? _engine;
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ")
+    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
     {
         Rows = rows;
         Columns = columns;
         AIMode = aiMode;
-        CurrentPlayer = firstPlayer.StartsWith("X", StringComparison.OrdinalIgnoreCase) ? "X" : "O";
+        CurrentPlayer = firstPlayer.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 
         _initialPlayer = CurrentPlayer;
+        _humanSymbol = string.IsNullOrWhiteSpace(humanSymbol)
+            ? CurrentPlayer
+            : (humanSymbol.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X");
+        _aiSymbol = _humanSymbol == "X" ? "O" : "X";
         Cells = new ObservableCollection<Cell>();
         _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
         _candidatePositions = new HashSet<(int, int)>();

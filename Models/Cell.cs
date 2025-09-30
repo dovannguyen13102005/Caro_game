@@ -10,6 +10,7 @@ namespace Caro_game.Models
     {
         private string _value;
         private bool _isWinningCell;
+        private bool _isLastMove;
 
         public int Row { get; set; }
         public int Col { get; set; }
@@ -26,6 +27,12 @@ namespace Caro_game.Models
             set { _isWinningCell = value; OnPropertyChanged(); }
         }
 
+        public bool IsLastMove
+        {
+            get => _isLastMove;
+            set { _isLastMove = value; OnPropertyChanged(); }
+        }
+
         public ICommand ClickCommand { get; set; }
 
         public Cell(int row, int col, BoardViewModel board)
@@ -34,7 +41,8 @@ namespace Caro_game.Models
             Col = col;
             Value = string.Empty;
             IsWinningCell = false;
-            ClickCommand = new RelayCommand(o => board.MakeMove(this));
+            IsLastMove = false;
+            ClickCommand = new RelayCommand(_ => board.MakeHumanMove(this));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

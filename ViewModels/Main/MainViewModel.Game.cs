@@ -14,12 +14,25 @@ public partial class MainViewModel
         int rows = baseSize;
         int cols = baseSize;
 
-        var board = new BoardViewModel(rows, cols, FirstPlayer, SelectedAIMode)
+        bool playerStarts = FirstPlayer switch
+        {
+            "Bạn đi trước" => true,
+            "Máy đi trước" => false,
+            "Ngẫu nhiên" => _random.Next(2) == 0,
+            _ => true
+        };
+
+        string startingSymbol = "X";
+        string humanSymbol = playerStarts ? startingSymbol : "O";
+
+        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol)
         {
             IsAIEnabled = IsAIEnabled
         };
 
         Board = board;
+
+        board.TryStartAITurn();
 
         _configuredDuration = SelectedTimeOption.Minutes > 0
             ? TimeSpan.FromMinutes(SelectedTimeOption.Minutes)

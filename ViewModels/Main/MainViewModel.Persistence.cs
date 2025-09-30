@@ -33,6 +33,7 @@ public partial class MainViewModel
                 Columns = Board.Columns,
                 FirstPlayer = Board.InitialPlayer,
                 CurrentPlayer = Board.CurrentPlayer,
+                HumanSymbol = Board.HumanSymbol,
                 IsAIEnabled = Board.IsAIEnabled,
                 AIMode = Board.AIMode,
                 TimeLimitMinutes = SelectedTimeOption.Minutes,
@@ -47,6 +48,22 @@ public partial class MainViewModel
                     IsWinningCell = c.IsWinningCell
                 }).ToList()
             };
+
+            var lastMove = Board.LastMovePosition;
+            if (lastMove.HasValue)
+            {
+                state.LastMoveRow = lastMove.Value.Row;
+                state.LastMoveCol = lastMove.Value.Col;
+            }
+
+            state.LastMovePlayer = Board.LastMovePlayer;
+
+            var lastHumanMove = Board.LastHumanMovePosition;
+            if (lastHumanMove.HasValue)
+            {
+                state.LastHumanMoveRow = lastHumanMove.Value.Row;
+                state.LastHumanMoveCol = lastHumanMove.Value.Col;
+            }
 
             var json = JsonSerializer.Serialize(state, new JsonSerializerOptions
             {
@@ -96,7 +113,11 @@ public partial class MainViewModel
         IsGameActive = false;
         IsGamePaused = false;
 
-        FirstPlayer = state.FirstPlayer == "O" ? "O" : "X (Bạn)";
+        var humanSymbol = string.IsNullOrWhiteSpace(state.HumanSymbol)
+            ? "X"
+            : (state.HumanSymbol!.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X");
+
+        FirstPlayer = humanSymbol == "O" ? "Máy đi trước" : "Bạn đi trước";
 
         IsAIEnabled = state.IsAIEnabled;
         var targetMode = string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!;
@@ -105,7 +126,7 @@ public partial class MainViewModel
         bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
         var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol)
         {
             IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
         };

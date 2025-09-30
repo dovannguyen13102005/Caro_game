@@ -4,17 +4,12 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Caro_game.ViewModels"
-        xmlns:conv="clr-namespace:Caro_game.Converters"
         mc:Ignorable="d"
         Title="Caro Game"
         Width="1000" Height="700"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}"
         WindowState="Maximized">
-
-    <Window.Resources>
-        <conv:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
-    </Window.Resources>
 
     <Window.DataContext>
         <vm:MainViewModel/>
@@ -146,10 +141,25 @@
                                                                 Margin="1"
                                                                 FontWeight="Bold"
                                                                 FontSize="16"
-                                                                Background="{Binding IsWinningCell, Converter={StaticResource BoolToBrushConverter}}"
-                                                                Foreground="{DynamicResource DefaultForeground}"
-                                                                BorderBrush="{DynamicResource CellBorderBrush}"
-                                                                BorderThickness="1"/>
+                                                                Foreground="{DynamicResource DefaultForeground}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button">
+                                                                    <Setter Property="Background" Value="{DynamicResource CellBackgroundBrush}"/>
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource CellBorderBrush}"/>
+                                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsLastMove}" Value="True">
+                                                                            <Setter Property="Background" Value="{DynamicResource LastMoveBrush}"/>
+                                                                            <Setter Property="BorderBrush" Value="{DynamicResource Primary}"/>
+                                                                            <Setter Property="BorderThickness" Value="2"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsWinningCell}" Value="True">
+                                                                            <Setter Property="Background" Value="{DynamicResource WinningCellBrush}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>

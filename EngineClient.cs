@@ -12,7 +12,7 @@ namespace Caro_game
         private StreamReader? _output;
         private readonly string _logFile;
 
-        public EngineClient(string enginePath)
+        public EngineClient(string enginePath, string? configPath = null)
         {
             _logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "engine_log.txt");
 
@@ -22,8 +22,21 @@ namespace Caro_game
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(enginePath) ?? AppDomain.CurrentDomain.BaseDirectory
             };
+
+            if (!string.IsNullOrWhiteSpace(configPath))
+            {
+                try
+                {
+                    psi.Environment["RAPFI_CONFIG"] = configPath;
+                }
+                catch
+                {
+                    // Nếu không thể thiết lập biến môi trường thì bỏ qua và để engine dùng đường dẫn mặc định.
+                }
+            }
 
             _process = new Process { StartInfo = psi };
             _process.Start();
@@ -32,6 +45,11 @@ namespace Caro_game
             _output = _process.StandardOutput;
 
             Log($"[Init] Engine started: {enginePath}");
+
+            if (!string.IsNullOrWhiteSpace(configPath))
+            {
+                Log($"[Init] Using config: {configPath}");
+            }
 
             // gửi timeout mặc định
             Send("INFO timeout_turn 1000");

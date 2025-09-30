@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using Caro_game;
+using Caro_game.Services;
 
 namespace Caro_game.ViewModels;
 
@@ -24,7 +25,20 @@ public partial class BoardViewModel
 
         try
         {
-            _engine = new EngineClient(enginePath);
+            string configPath;
+
+            try
+            {
+                configPath = RapfiConfigManager.PrepareConfig(enginePath, _rule);
+            }
+            catch (Exception ex)
+            {
+                NotifyProfessionalModeUnavailable("Không thể chuẩn bị cấu hình cho engine Rapfi.\n" +
+                                                 $"Chi tiết: {ex.Message}");
+                return;
+            }
+
+            _engine = new EngineClient(enginePath, configPath);
 
             if (Rows == Columns)
             {

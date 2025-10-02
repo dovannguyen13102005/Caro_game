@@ -17,7 +17,7 @@ public partial class BoardViewModel
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\")
         );
 
-        // 🔹 Đường dẫn tới AI ngoài repo
+        // 🔹 Đường dẫn tới exe
         var enginePath = Path.Combine(projectRoot, "AI", "pbrain-rapfi_avx2.exe");
 
         if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
@@ -29,6 +29,30 @@ public partial class BoardViewModel
 
         try
         {
+            // 🔹 Copy đúng config luật thành config.toml
+            if (_rule != null)
+            {
+                var configFileName = _rule.GetConfigFileName(_aiSymbol == "X");
+                if (!string.IsNullOrWhiteSpace(configFileName))
+                {
+                    var configSource = Path.Combine(projectRoot, "AI", configFileName);
+                    var configDest = Path.Combine(projectRoot, "AI", "config.toml");
+
+                    if (File.Exists(configSource))
+                    {
+                        File.Copy(configSource, configDest, true); // copy đè
+                    }
+                    else
+                    {
+                        NotifyProfessionalModeUnavailable(
+                            $"Không tìm thấy tệp cấu hình cho luật {_rule.Name}.\nĐường dẫn: {configSource}");
+                        DisposeEngine();
+                        return;
+                    }
+                }
+            }
+
+            // 🔹 Khởi tạo engine
             _engine = new EngineClient(enginePath);
 
             if (Rows == Columns)
@@ -46,32 +70,15 @@ public partial class BoardViewModel
                 return;
             }
 
-            if (_rule != null)
+            // 🔹 Gửi rule keyword nếu có (freestyle/renju/standard)
+            if (_rule != null && !string.IsNullOrWhiteSpace(_rule.EngineRuleKeyword))
             {
-                var configFileName = _rule.GetConfigFileName(_aiSymbol == "X");
-                if (!string.IsNullOrWhiteSpace(configFileName))
-                {
-                    var configPath = Path.Combine(projectRoot, "AI", configFileName);
-                    if (File.Exists(configPath))
-                    {
-                        _engine.SetConfigFile(configPath);
-                    }
-                    else
-                    {
-                        NotifyProfessionalModeUnavailable(
-                            $"Không tìm thấy tệp cấu hình cho luật {_rule.Name}.\nĐường dẫn: {configPath}");
-                        DisposeEngine();
-                        return;
-                    }
-                }
-
-                if (!string.IsNullOrWhiteSpace(_rule.EngineRuleKeyword))
-                {
-                    _engine.SendInfo("rule", _rule.EngineRuleKeyword!);
-                }
+                _engine.SendInfo("rule", _rule.EngineRuleKeyword!);
             }
 
-            // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi luôn
+            // ❌ KHÔNG gửi END ở đây, chỉ gửi END khi quit game!
+
+            // ✅ Nếu bàn trống và AI đi trước → gọi BEGIN
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {
                 var aiMove = _engine.Begin();
@@ -83,7 +90,6 @@ public partial class BoardViewModel
             NotifyProfessionalModeUnavailable($"Không thể khởi động AI Chuyên nghiệp.\nChi tiết: {ex}");
         }
     }
-
 
 
     private void NotifyProfessionalModeUnavailable(string message)

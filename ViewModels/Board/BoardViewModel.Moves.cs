@@ -16,14 +16,10 @@ public partial class BoardViewModel
     private void ExecuteMove(Cell cell, bool isAiMove)
     {
         if (IsPaused || !string.IsNullOrEmpty(cell.Value))
-        {
             return;
-        }
 
         if (!isAiMove && IsAIEnabled && CurrentPlayer != _humanSymbol)
-        {
             return;
-        }
 
         var movingPlayer = CurrentPlayer;
         int originalRow = cell.Row;
@@ -34,18 +30,14 @@ public partial class BoardViewModel
         var previousLastHumanMoveCell = _lastHumanMoveCell;
 
         if (_lastMoveCell != null)
-        {
             _lastMoveCell.IsLastMove = false;
-        }
 
         _lastMoveCell = cell;
         _lastMovePlayer = movingPlayer;
         cell.IsLastMove = true;
 
         if (movingPlayer == _humanSymbol)
-        {
             _lastHumanMoveCell = cell;
-        }
 
         cell.Value = movingPlayer;
 
@@ -74,9 +66,7 @@ public partial class BoardViewModel
             }
 
             if (_rule.TryGetWinningLine(boardState, playerValue, cell.Row, cell.Col, out var ruleWinningLine))
-            {
                 winningLine = ruleWinningLine;
-            }
         }
         else if (TryGetClassicWinningLine(cell.Row, cell.Col, movingPlayer, out var classicLine))
         {
@@ -84,9 +74,7 @@ public partial class BoardViewModel
         }
 
         if (!(IsAIEnabled && AIMode == "Chuyên nghiệp"))
-        {
             ExpandBoardIfNeeded(originalRow, originalCol);
-        }
 
         UpdateCandidatePositions(cell.Row, cell.Col);
 
@@ -132,7 +120,6 @@ public partial class BoardViewModel
         }
 
         CurrentPlayer = movingPlayer == "X" ? "O" : "X";
-
         TriggerAiTurnIfNeeded(cell, movingPlayer);
     }
 
@@ -142,9 +129,7 @@ public partial class BoardViewModel
     private void TriggerAiTurnIfNeeded(Cell? lastMoveCell, string? lastMovePlayer)
     {
         if (!IsAIEnabled || IsPaused || CurrentPlayer != _aiSymbol)
-        {
             return;
-        }
 
         if (AIMode == "Chuyên nghiệp" && _engine != null)
         {
@@ -158,9 +143,14 @@ public partial class BoardViewModel
             {
                 try
                 {
-                    string aiMove = lastMovePlayer == _humanSymbol && lastMoveCell != null
-                        ? _engine!.Turn(lastMoveCell.Col, lastMoveCell.Row)
-                        : _engine!.Begin();
+                    string aiMove;
+
+                    if (Cells.All(c => string.IsNullOrEmpty(c.Value))) // bàn trống → BEGIN
+                        aiMove = _engine!.Begin();
+                    else if (lastMovePlayer == _humanSymbol && lastMoveCell != null)
+                        aiMove = _engine!.Turn(lastMoveCell.Row, lastMoveCell.Col);
+                    else
+                        return;
 
                     PlaceAiIfValid(aiMove);
 
@@ -211,9 +201,7 @@ public partial class BoardViewModel
         IsPaused = false;
 
         if (AIMode == "Chuyên nghiệp")
-        {
             TryInitializeProfessionalEngine();
-        }
 
         TriggerAiTurnIfNeeded(null, null);
     }
@@ -221,10 +209,7 @@ public partial class BoardViewModel
     private async Task AIMoveAsync(Cell? lastMoveCell, string? lastMovePlayer)
     {
         var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher == null)
-        {
-            return;
-        }
+        if (dispatcher == null) return;
 
         dispatcher.Invoke(() =>
         {
@@ -240,49 +225,39 @@ public partial class BoardViewModel
             await Task.Delay(AiThinkingDelay);
 
             if (!IsAIEnabled || IsPaused || CurrentPlayer != _aiSymbol)
-            {
                 return;
-            }
 
             Cell? bestCell = null;
 
             if (AIMode == "Dễ")
             {
                 Cell? reference = lastMovePlayer == _humanSymbol ? lastMoveCell : _lastHumanMoveCell;
-
                 if (reference != null)
                 {
                     var neighbors = Cells.Where(c =>
-                            string.IsNullOrEmpty(c.Value) &&
-                            Math.Abs(c.Row - reference.Row) <= 1 &&
-                            Math.Abs(c.Col - reference.Col) <= 1)
-                        .ToList();
+                        string.IsNullOrEmpty(c.Value) &&
+                        Math.Abs(c.Row - reference.Row) <= 1 &&
+                        Math.Abs(c.Col - reference.Col) <= 1).ToList();
 
                     if (neighbors.Count > 0)
-                    {
                         bestCell = neighbors[Random.Shared.Next(neighbors.Count)];
-                    }
                 }
 
                 if (bestCell == null)
                 {
                     var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
                     if (emptyCells.Count > 0)
-                    {
                         bestCell = emptyCells[Random.Shared.Next(emptyCells.Count)];
-                    }
                 }
             }
-            else
+            else // AIMode == "Khó"
             {
                 var candidates = Cells
                     .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
                     .ToList();
 
                 if (!candidates.Any())
-                {
                     candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
-                }
 
                 int bestScore = int.MinValue;
 
@@ -302,9 +277,7 @@ public partial class BoardViewModel
                 dispatcher.Invoke(() =>
                 {
                     if (!IsAIEnabled || IsPaused || CurrentPlayer != _aiSymbol)
-                    {
                         return;
-                    }
 
                     ExecuteMove(bestCell, true);
                 });
@@ -325,21 +298,19 @@ public partial class BoardViewModel
 
     private void PlaceAiIfValid(string aiMove)
     {
-        if (string.IsNullOrWhiteSpace(aiMove))
-        {
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(aiMove)) return;
 
         var parts = aiMove.Split(',');
         if (parts.Length == 2 &&
-            int.TryParse(parts[0], out int aiX) &&
-            int.TryParse(parts[1], out int aiY) &&
-            _cellLookup.TryGetValue((aiY, aiX), out var aiCell))
+            int.TryParse(parts[0], out int aiRow) &&
+            int.TryParse(parts[1], out int aiCol) &&
+            _cellLookup.TryGetValue((aiRow, aiCol), out var aiCell))
         {
             Application.Current.Dispatcher.Invoke(() => ExecuteMove(aiCell, true));
         }
     }
 
+    // ================== Helper cho AI Khó ==================
     private bool HasNeighbor(Cell cell, int range)
         => GetNeighbors(cell.Row, cell.Col, range).Any(n => !string.IsNullOrEmpty(n.Value));
 
@@ -349,18 +320,13 @@ public partial class BoardViewModel
         {
             for (int dc = -range; dc <= range; dc++)
             {
-                if (dr == 0 && dc == 0)
-                {
-                    continue;
-                }
+                if (dr == 0 && dc == 0) continue;
 
                 int r = row + dr;
                 int c = col + dc;
 
                 if (_cellLookup.TryGetValue((r, c), out var neighbor))
-                {
                     yield return neighbor;
-                }
             }
         }
     }
@@ -370,13 +336,10 @@ public partial class BoardViewModel
         lock (_candidateLock)
         {
             _candidatePositions.Remove((row, col));
-
             foreach (var neighbor in GetNeighbors(row, col, 2))
             {
                 if (string.IsNullOrEmpty(neighbor.Value))
-                {
                     _candidatePositions.Add((neighbor.Row, neighbor.Col));
-                }
             }
         }
     }
@@ -395,10 +358,7 @@ public partial class BoardViewModel
         int score = 0;
         foreach (var neighbor in GetNeighbors(cell.Row, cell.Col, 1))
         {
-            if (neighbor.Value == player)
-            {
-                score += 1;
-            }
+            if (neighbor.Value == player) score++;
         }
         return score;
     }
@@ -441,15 +401,10 @@ public partial class BoardViewModel
                 r += dRow;
                 c += dCol;
             }
-            else
-            {
-                break;
-            }
+            else break;
         }
-
         return count;
     }
-
     private List<Cell> GetLine(int row, int col, int dRow, int dCol, string player)
     {
         var list = new List<Cell>();
@@ -472,4 +427,5 @@ public partial class BoardViewModel
 
         return list;
     }
+
 }

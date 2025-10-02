@@ -143,7 +143,14 @@ namespace Caro_game
 
         public void Dispose()
         {
-            End();
+            // ❌ KHÔNG gọi End() ở đây nữa
+            try
+            {
+                if (_process != null && !_process.HasExited)
+                    _process.Kill(true);
+            }
+            catch { }
+
             _input?.Dispose();
             _output?.Dispose();
             _process?.Dispose();
@@ -151,5 +158,6 @@ namespace Caro_game
             _output = null;
             _process = null;
         }
+
     }
 }

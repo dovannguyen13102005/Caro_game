@@ -46,7 +46,7 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
-        if (_allowBoardExpansion && !(IsAIEnabled && AIMode == "Chuyên nghiệp"))
+        if (_allowBoardExpansion)
         {
             ExpandBoardIfNeeded(originalRow, originalCol);
         }

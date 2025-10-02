@@ -8,12 +8,7 @@ public partial class BoardViewModel
 {
     private void ExpandBoardIfNeeded(int originalRow, int originalCol)
     {
-        if (!_allowBoardExpansion)
-        {
-            return;
-        }
-
-        if (IsAIEnabled && AIMode == "Chuyên nghiệp")
+        if (!_allowBoardExpansion || IsAIEnabled)
         {
             return;
         }

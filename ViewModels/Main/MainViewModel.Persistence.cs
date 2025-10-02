@@ -36,6 +36,7 @@ public partial class MainViewModel
                 HumanSymbol = Board.HumanSymbol,
                 IsAIEnabled = Board.IsAIEnabled,
                 AIMode = Board.AIMode,
+                Rule = Board.Rule,
                 TimeLimitMinutes = SelectedTimeOption.Minutes,
                 RemainingSeconds = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTime.TotalSeconds) : null,
                 IsPaused = IsGamePaused,
@@ -126,7 +127,14 @@ public partial class MainViewModel
         bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
         var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol)
+        var loadedRule = Enum.IsDefined(typeof(GameRuleType), state.Rule) ? state.Rule : GameRuleType.Freestyle;
+        var selectedRule = GameRules.FirstOrDefault(r => r.Type == loadedRule)
+            ?? GameRules.FirstOrDefault(r => r.BoardSize == state.Rows)
+            ?? GameRules[0];
+
+        SelectedRule = selectedRule;
+
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol, SelectedRule.Type)
         {
             IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
         };

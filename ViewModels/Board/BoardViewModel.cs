@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using Caro_game;
 using Caro_game.Models;
+using Caro_game.Rules;
 
 namespace Caro_game.ViewModels;
 
@@ -44,6 +45,7 @@ public partial class BoardViewModel : BaseViewModel
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
     private readonly object _candidateLock = new();
     private readonly string _initialPlayer;
+    private readonly GameRuleType _rule;
     private readonly string _humanSymbol;
     private readonly string _aiSymbol;
     private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromMilliseconds(600);
@@ -117,6 +119,7 @@ public partial class BoardViewModel : BaseViewModel
     }
 
     public string InitialPlayer => _initialPlayer;
+    public GameRuleType Rule => _rule;
     public string HumanSymbol => _humanSymbol;
     public string AISymbol => _aiSymbol;
     public (int Row, int Col)? LastMovePosition => _lastMoveCell != null
@@ -131,7 +134,7 @@ public partial class BoardViewModel : BaseViewModel
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
+    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null, GameRuleType rule = GameRuleType.Freestyle)
     {
         Rows = rows;
         Columns = columns;
@@ -139,6 +142,7 @@ public partial class BoardViewModel : BaseViewModel
         CurrentPlayer = firstPlayer.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 
         _initialPlayer = CurrentPlayer;
+        _rule = rule;
         _humanSymbol = string.IsNullOrWhiteSpace(humanSymbol)
             ? CurrentPlayer
             : (humanSymbol.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X");
@@ -160,5 +164,12 @@ public partial class BoardViewModel : BaseViewModel
         {
             TryInitializeProfessionalEngine();
         }
+    }
+
+    private string? GetCellValueForRule(int row, int col)
+    {
+        return _cellLookup.TryGetValue((row, col), out var cell) && !string.IsNullOrEmpty(cell.Value)
+            ? cell.Value
+            : null;
     }
 }

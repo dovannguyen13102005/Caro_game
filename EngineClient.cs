@@ -98,6 +98,16 @@ namespace Caro_game
                    resp.StartsWith("OK", StringComparison.OrdinalIgnoreCase);
         }
 
+        public void SetRule(string rule)
+        {
+            if (string.IsNullOrWhiteSpace(rule))
+            {
+                return;
+            }
+
+            Send($"INFO rule {rule}");
+        }
+
         public string Begin()
         {
             Send("BEGIN");

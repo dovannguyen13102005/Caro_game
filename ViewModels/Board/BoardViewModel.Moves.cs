@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using Caro_game.Models;
+using Caro_game.Rules;
 using Caro_game.Views;
 
 namespace Caro_game.ViewModels;
@@ -26,17 +27,17 @@ public partial class BoardViewModel
         }
 
         var movingPlayer = CurrentPlayer;
-        int originalRow = cell.Row;
-        int originalCol = cell.Col;
+
+        if (!IsMoveAllowedByRule(cell, movingPlayer, out var violationMessage))
+        {
+            HandleIllegalMove(movingPlayer, isAiMove, violationMessage);
+            return;
+        }
 
         if (_lastMoveCell != null)
         {
             _lastMoveCell.IsLastMove = false;
         }
-
-        _lastMoveCell = cell;
-        _lastMovePlayer = movingPlayer;
-        cell.IsLastMove = true;
 
         if (movingPlayer == _humanSymbol)
         {
@@ -45,10 +46,9 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
-        if (!(IsAIEnabled && AIMode == "Chuyên nghiệp"))
-        {
-            ExpandBoardIfNeeded(originalRow, originalCol);
-        }
+        _lastMoveCell = cell;
+        _lastMovePlayer = movingPlayer;
+        cell.IsLastMove = true;
 
         UpdateCandidatePositions(cell.Row, cell.Col);
 
@@ -413,22 +413,49 @@ public partial class BoardViewModel
     }
 
     private bool CheckWin(int row, int col, string player)
+        => GomokuRuleEvaluator.CheckWin(GetCellValueForRule, Rows, Columns, row, col, player, _rule);
+
+    private bool IsMoveAllowedByRule(Cell cell, string movingPlayer, out string? violationMessage)
     {
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
+        violationMessage = null;
 
-        foreach (var dir in directions)
+        if (_rule != GameRuleType.Renju)
         {
-            int count = 1;
-            count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
-            count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
-
-            if (count >= 5)
-            {
-                return true;
-            }
+            return true;
         }
 
-        return false;
+        cell.Value = movingPlayer;
+        bool isValid = GomokuRuleEvaluator.IsMoveValid(GetCellValueForRule, Rows, Columns, cell.Row, cell.Col, movingPlayer, _rule, out violationMessage);
+        cell.Value = string.Empty;
+
+        return isValid;
+    }
+
+    private void HandleIllegalMove(string movingPlayer, bool isAiMove, string? violationMessage)
+    {
+        if (_rule != GameRuleType.Renju)
+        {
+            return;
+        }
+
+        string message = violationMessage ?? "Nước đi không hợp lệ theo luật Renju.";
+
+        if (isAiMove)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show($"{message}\nBạn thắng ván này do đối thủ phạm luật.", "AI phạm luật", MessageBoxButton.OK, MessageBoxImage.Warning);
+                GameEnded?.Invoke(this, new GameEndedEventArgs(_humanSymbol, false, true));
+            });
+            DisposeEngine();
+        }
+        else
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show(message, "Nước đi không hợp lệ", MessageBoxButton.OK, MessageBoxImage.Warning);
+            });
+        }
     }
 
     private void HighlightWinningCells(int row, int col, string player)

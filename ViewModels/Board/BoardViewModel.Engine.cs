@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using Caro_game;
+using Caro_game.Models;
 
 namespace Caro_game.ViewModels;
 
@@ -45,6 +46,15 @@ public partial class BoardViewModel
                 AIMode = "Khó";
                 return;
             }
+
+            string ruleKey = _rule switch
+            {
+                GameRuleType.Freestyle => "freestyle",
+                GameRuleType.Standard => "standard",
+                GameRuleType.Renju => "renju",
+                _ => "freestyle"
+            };
+            _engine.SetRule(ruleKey);
 
             // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi luôn
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)

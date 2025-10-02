@@ -9,10 +9,9 @@ public partial class MainViewModel
 {
     private void StartGame(object? parameter)
     {
-        bool isProfessionalMode = SelectedAIMode == "Chuyên nghiệp";
-        int baseSize = isProfessionalMode ? 19 : 35;
-        int rows = baseSize;
-        int cols = baseSize;
+        int boardSize = SelectedRule?.BoardSize ?? 19;
+        int rows = boardSize;
+        int cols = boardSize;
 
         bool playerStarts = FirstPlayer switch
         {
@@ -25,7 +24,7 @@ public partial class MainViewModel
         string startingSymbol = "X";
         string humanSymbol = playerStarts ? startingSymbol : "O";
 
-        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol)
+        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol, SelectedRule?.Type ?? GameRuleType.Freestyle)
         {
             IsAIEnabled = IsAIEnabled
         };

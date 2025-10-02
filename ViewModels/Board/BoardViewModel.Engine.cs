@@ -52,6 +52,8 @@ public partial class BoardViewModel
                 var aiMove = _engine.Begin();
                 PlaceAiIfValid(aiMove);
             }
+
+            SyncProfessionalEngineWithMoves();
         }
         catch (Exception ex)
         {
@@ -76,5 +78,60 @@ public partial class BoardViewModel
     {
         _engine?.Dispose();
         _engine = null;
+    }
+
+    private void SyncProfessionalEngineWithMoves()
+    {
+        if (_engine == null || _moveHistory.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var moves = _moveHistory
+                .Select(m => (X: m.Col, Y: m.Row, Player: GetPlayerValue(m.Player)))
+                .ToList();
+
+            var response = _engine.SyncBoard(moves);
+
+            if (!string.IsNullOrWhiteSpace(response) && CurrentPlayer == _aiSymbol && !IsPaused)
+            {
+                if (TryParseMove(response, out var x, out var y) &&
+                    _cellLookup.TryGetValue((y, x), out var cell) &&
+                    string.IsNullOrEmpty(cell.Value))
+                {
+                    PlaceAiIfValid(response);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Application.Current.Dispatcher?.Invoke(() =>
+            {
+                MessageBox.Show(
+                    $"Không thể đồng bộ trạng thái với AI Chuyên nghiệp.\nChi tiết: {ex.Message}",
+                    "Chuyên nghiệp",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            });
+        }
+    }
+
+    private static bool TryParseMove(string? move, out int x, out int y)
+    {
+        x = y = -1;
+        if (string.IsNullOrWhiteSpace(move))
+        {
+            return false;
+        }
+
+        var parts = move.Split(',');
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        return int.TryParse(parts[0], out x) && int.TryParse(parts[1], out y);
     }
 }

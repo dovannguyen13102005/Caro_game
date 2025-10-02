@@ -47,6 +47,12 @@ public partial class MainViewModel
                     Col = c.Col,
                     Value = c.Value,
                     IsWinningCell = c.IsWinningCell
+                }).ToList(),
+                Moves = Board.MoveHistory.Select(m => new MoveState
+                {
+                    Row = m.Row,
+                    Col = m.Col,
+                    Player = m.Player
                 }).ToList()
             };
 
@@ -124,29 +130,18 @@ public partial class MainViewModel
         var targetMode = string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!;
         SelectedAIMode = targetMode;
 
-        bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
-        var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
-
         var ruleOption = ResolveRuleOption(state.Rule);
         SelectedRuleOption = ruleOption;
         var ruleInstance = ruleOption.CreateRule();
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", targetMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion)
         {
-            IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
+            IsAIEnabled = state.IsAIEnabled
         };
 
         board.LoadFromState(state);
 
         Board = board;
-
-        if (professionalModeRestored)
-        {
-            SelectedAIMode = "Khó";
-            IsAIEnabled = false;
-            MessageBox.Show("Không thể tiếp tục cấp độ AI Chuyên nghiệp cho ván đã lưu. Cấp độ đã được chuyển về Khó.",
-                "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
 
         var option = EnsureTimeOption(state.TimeLimitMinutes);
         SelectedTimeOption = option;

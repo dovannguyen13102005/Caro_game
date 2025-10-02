@@ -49,6 +49,13 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
+        _moveHistory.Add(new MoveState
+        {
+            Row = cell.Row,
+            Col = cell.Col,
+            Player = movingPlayer
+        });
+
         AudioService.Instance.PlayMoveSound();
 
         if (_allowBoardExpansion && !(IsAIEnabled && AIMode == "Chuyên nghiệp"))
@@ -200,6 +207,7 @@ public partial class BoardViewModel
         _lastMoveCell = null;
         _lastHumanMoveCell = null;
         _lastMovePlayer = null;
+        _moveHistory.Clear();
 
         CurrentPlayer = _initialPlayer;
         IsPaused = false;
@@ -328,7 +336,8 @@ public partial class BoardViewModel
         if (parts.Length == 2 &&
             int.TryParse(parts[0], out int aiX) &&
             int.TryParse(parts[1], out int aiY) &&
-            _cellLookup.TryGetValue((aiY, aiX), out var aiCell))
+            _cellLookup.TryGetValue((aiY, aiX), out var aiCell) &&
+            string.IsNullOrEmpty(aiCell.Value))
         {
             Application.Current.Dispatcher.Invoke(() => ExecuteMove(aiCell, true));
         }
@@ -363,7 +372,7 @@ public partial class BoardViewModel
     {
         lock (_candidateLock)
         {
-            _candidatePositions.Remove((row, col));
+        _candidatePositions.Remove((row, col));
 
             foreach (var neighbor in GetNeighbors(row, col, 2))
             {
@@ -531,6 +540,9 @@ public partial class BoardViewModel
 
     private static int GetPlayerValue(string player)
         => player.Equals("X", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+
+    private static string NormalizePlayerSymbol(string? player)
+        => string.Equals(player, "O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 
     private List<(int Row, int Col)>? GetWinningLine(int[,] boardState, int row, int col, int playerValue)
     {

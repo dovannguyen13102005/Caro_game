@@ -43,6 +43,7 @@ public partial class BoardViewModel : BaseViewModel
 
     private readonly Dictionary<(int Row, int Col), Cell> _cellLookup;
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
+    private readonly List<MoveState> _moveHistory;
     private readonly object _candidateLock = new();
     private readonly string _initialPlayer;
     private readonly string _humanSymbol;
@@ -130,6 +131,7 @@ public partial class BoardViewModel : BaseViewModel
         ? (_lastHumanMoveCell.Row, _lastHumanMoveCell.Col)
         : null;
     public string? LastMovePlayer => _lastMovePlayer;
+    public IReadOnlyList<MoveState> MoveHistory => _moveHistory;
 
     private EngineClient? _engine;
 
@@ -161,6 +163,7 @@ public partial class BoardViewModel : BaseViewModel
         Cells = new ObservableCollection<Cell>();
         _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
         _candidatePositions = new HashSet<(int, int)>();
+        _moveHistory = new List<MoveState>();
 
         for (int i = 0; i < rows * columns; i++)
         {

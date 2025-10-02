@@ -20,6 +20,8 @@ public partial class BoardViewModel
             cell.IsLastMove = false;
         }
 
+        _moveHistory.Clear();
+
         if (state.Cells != null)
         {
             foreach (var cellState in state.Cells)
@@ -32,24 +34,59 @@ public partial class BoardViewModel
             }
         }
 
+        if (state.Moves != null)
+        {
+            foreach (var move in state.Moves)
+            {
+                var normalized = NormalizePlayerSymbol(move.Player);
+                _moveHistory.Add(new MoveState
+                {
+                    Row = move.Row,
+                    Col = move.Col,
+                    Player = normalized
+                });
+            }
+        }
+
         _lastMoveCell = null;
         _lastHumanMoveCell = null;
         _lastMovePlayer = null;
 
-        if (state.LastMoveRow.HasValue && state.LastMoveCol.HasValue &&
-            _cellLookup.TryGetValue((state.LastMoveRow.Value, state.LastMoveCol.Value), out var lastMove))
+        if (_moveHistory.Count > 0)
         {
-            _lastMoveCell = lastMove;
-            _lastMovePlayer = string.IsNullOrWhiteSpace(state.LastMovePlayer)
-                ? null
-                : state.LastMovePlayer;
-            lastMove.IsLastMove = true;
-        }
+            var lastMoveState = _moveHistory[^1];
+            _lastMovePlayer = lastMoveState.Player;
 
-        if (state.LastHumanMoveRow.HasValue && state.LastHumanMoveCol.HasValue &&
-            _cellLookup.TryGetValue((state.LastHumanMoveRow.Value, state.LastHumanMoveCol.Value), out var lastHuman))
+            if (_cellLookup.TryGetValue((lastMoveState.Row, lastMoveState.Col), out var lastMoveCell))
+            {
+                _lastMoveCell = lastMoveCell;
+                lastMoveCell.IsLastMove = true;
+            }
+
+            var lastHumanMoveState = _moveHistory.LastOrDefault(m => m.Player == _humanSymbol);
+            if (lastHumanMoveState != null &&
+                _cellLookup.TryGetValue((lastHumanMoveState.Row, lastHumanMoveState.Col), out var lastHumanCell))
+            {
+                _lastHumanMoveCell = lastHumanCell;
+            }
+        }
+        else
         {
-            _lastHumanMoveCell = lastHuman;
+            if (state.LastMoveRow.HasValue && state.LastMoveCol.HasValue &&
+                _cellLookup.TryGetValue((state.LastMoveRow.Value, state.LastMoveCol.Value), out var lastMove))
+            {
+                _lastMoveCell = lastMove;
+                _lastMovePlayer = string.IsNullOrWhiteSpace(state.LastMovePlayer)
+                    ? null
+                    : NormalizePlayerSymbol(state.LastMovePlayer);
+                lastMove.IsLastMove = true;
+            }
+
+            if (state.LastHumanMoveRow.HasValue && state.LastHumanMoveCol.HasValue &&
+                _cellLookup.TryGetValue((state.LastHumanMoveRow.Value, state.LastHumanMoveCol.Value), out var lastHuman))
+            {
+                _lastHumanMoveCell = lastHuman;
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(state.CurrentPlayer))
@@ -60,6 +97,11 @@ public partial class BoardViewModel
         RebuildCandidatePositions();
 
         IsPaused = state.IsPaused;
+
+        if (AIMode == "Chuyên nghiệp" && IsAIEnabled)
+        {
+            SyncProfessionalEngineWithMoves();
+        }
     }
 
     private void RebuildCandidatePositions()

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Caro_game.Models;
 using Caro_game.Rules;
+using Caro_game.Services;
 using Caro_game.Views;
 
 namespace Caro_game.ViewModels;
@@ -16,13 +17,15 @@ public partial class BoardViewModel
 
     private void ExecuteMove(Cell cell, bool isAiMove)
     {
-        if (IsPaused || !string.IsNullOrEmpty(cell.Value))
+        if (!isAiMove && (IsPaused || !string.IsNullOrEmpty(cell.Value)))
         {
+            AudioService.Instance.PlayErrorSound();
             return;
         }
 
         if (!isAiMove && IsAIEnabled && CurrentPlayer != _humanSymbol)
         {
+            AudioService.Instance.PlayErrorSound();
             return;
         }
 
@@ -46,6 +49,8 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
+        AudioService.Instance.PlayMoveSound();
+
         if (_allowBoardExpansion && !(IsAIEnabled && AIMode == "Chuyên nghiệp"))
         {
             ExpandBoardIfNeeded(originalRow, originalCol);
@@ -68,7 +73,23 @@ public partial class BoardViewModel
 
             Application.Current.Dispatcher.Invoke(() =>
             {
-                var dialog = new WinDialog($"Người chơi {movingPlayer} thắng!")
+                bool aiMatch = IsAIEnabled;
+                bool aiWon = aiMatch && string.Equals(movingPlayer, _aiSymbol, StringComparison.OrdinalIgnoreCase);
+
+                string message = aiMatch
+                    ? (aiWon ? "Máy thắng!" : "Bạn thắng!")
+                    : $"Người chơi {movingPlayer} thắng!";
+
+                if (aiWon)
+                {
+                    AudioService.Instance.PlayLoseSound();
+                }
+                else
+                {
+                    AudioService.Instance.PlayWinSound();
+                }
+
+                var dialog = new WinDialog(message)
                 {
                     Owner = Application.Current.MainWindow
                 };
@@ -95,6 +116,7 @@ public partial class BoardViewModel
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
+                AudioService.Instance.PlayLoseSound();
                 MessageBox.Show("Hòa cờ! Bàn đã đầy mà không có người thắng.",
                     "Kết thúc ván", MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -444,7 +466,30 @@ public partial class BoardViewModel
         Application.Current.Dispatcher.Invoke(() =>
         {
             string winner = offendingPlayer == "X" ? "O" : "X";
-            var dialog = new WinDialog($"Nước đi của {offendingPlayer} bị cấm theo luật {RuleName}. {winner} thắng!")
+            AudioService.Instance.PlayErrorSound();
+
+            bool aiMatch = IsAIEnabled;
+            bool humanCommittedFoul = aiMatch && string.Equals(offendingPlayer, _humanSymbol, StringComparison.OrdinalIgnoreCase);
+            bool aiCommittedFoul = aiMatch && string.Equals(offendingPlayer, _aiSymbol, StringComparison.OrdinalIgnoreCase);
+
+            string message = aiMatch
+                ? (humanCommittedFoul
+                    ? "Bạn thua vì đi sai luật!"
+                    : aiCommittedFoul
+                        ? "Máy đi sai luật, bạn thắng!"
+                        : $"Nước đi của {offendingPlayer} bị cấm theo luật {RuleName}. {winner} thắng!")
+                : $"Nước đi của {offendingPlayer} bị cấm theo luật {RuleName}. {winner} thắng!";
+
+            if (humanCommittedFoul)
+            {
+                AudioService.Instance.PlayLoseSound();
+            }
+            else
+            {
+                AudioService.Instance.PlayWinSound();
+            }
+
+            var dialog = new WinDialog(message)
             {
                 Owner = Application.Current.MainWindow
             };

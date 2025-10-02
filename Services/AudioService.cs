@@ -33,14 +33,30 @@ public sealed class AudioService
         {
             if (!_isMusicEnabled)
             {
+                _isBackgroundPlaying = false;
+                return;
+            }
+
+            ExecuteOnDispatcher(RestartBackgroundMusic);
+        };
+
+        _backgroundPlayer.MediaFailed += (_, _) =>
+        {
+            _isBackgroundPlaying = false;
+
+            if (!_isMusicEnabled)
+            {
                 return;
             }
 
             ExecuteOnDispatcher(() =>
             {
-                _backgroundPlayer.Position = TimeSpan.Zero;
-                _backgroundPlayer.Play();
-                _isBackgroundPlaying = true;
+                if (!TryOpen(_backgroundPlayer, BackgroundMusicFile))
+                {
+                    return;
+                }
+
+                RestartBackgroundMusic();
             });
         };
     }
@@ -82,9 +98,7 @@ public sealed class AudioService
                 }
             }
 
-            _backgroundPlayer.Position = TimeSpan.Zero;
-            _backgroundPlayer.Play();
-            _isBackgroundPlaying = true;
+            RestartBackgroundMusic();
         });
     }
 
@@ -95,6 +109,14 @@ public sealed class AudioService
             _backgroundPlayer.Stop();
             _isBackgroundPlaying = false;
         });
+    }
+
+    private void RestartBackgroundMusic()
+    {
+        _backgroundPlayer.Stop();
+        _backgroundPlayer.Position = TimeSpan.Zero;
+        _backgroundPlayer.Play();
+        _isBackgroundPlaying = true;
     }
 
     public void PlayMoveSound()
@@ -134,6 +156,8 @@ public sealed class AudioService
                 _activeEffectPlayers.Add(player);
             }
 
+            player.Stop();
+            player.Position = TimeSpan.Zero;
             player.Play();
         });
     }

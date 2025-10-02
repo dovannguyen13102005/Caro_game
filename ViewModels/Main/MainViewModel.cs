@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using Caro_game.Commands;
 using Caro_game.Models;
 using Caro_game.Rules;
+using Caro_game.Services;
 
 namespace Caro_game.ViewModels;
 
@@ -27,6 +28,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private TimeOption _selectedTimeOption;
     private string _selectedTheme;
     private bool _isSoundEnabled;
+    private bool _isMusicEnabled;
     private bool _isGameActive;
     private bool _isGamePaused;
     private TimeSpan _remainingTime;
@@ -127,6 +129,21 @@ public partial class MainViewModel : INotifyPropertyChanged
             {
                 _isSoundEnabled = value;
                 OnPropertyChanged();
+                AudioService.Instance.SetSoundEnabled(value);
+            }
+        }
+    }
+
+    public bool IsMusicEnabled
+    {
+        get => _isMusicEnabled;
+        set
+        {
+            if (_isMusicEnabled != value)
+            {
+                _isMusicEnabled = value;
+                OnPropertyChanged();
+                AudioService.Instance.SetMusicEnabled(value);
             }
         }
     }
@@ -267,6 +284,7 @@ public partial class MainViewModel : INotifyPropertyChanged
 
         SelectedTheme = DefaultDarkThemeLabel;
         IsSoundEnabled = true;
+        IsMusicEnabled = true;
         _selectedTimeOption = TimeOptions[3];
         RemainingTime = TimeSpan.FromMinutes(_selectedTimeOption.Minutes);
         StatusMessage = "Chưa bắt đầu";

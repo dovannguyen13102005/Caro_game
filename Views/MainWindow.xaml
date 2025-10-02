@@ -238,6 +238,10 @@
                                       IsChecked="{Binding IsSoundEnabled}"
                                       Foreground="{DynamicResource DefaultForeground}"/>
 
+                            <CheckBox Content="Nhạc nền" Margin="0,6,0,0"
+                                      IsChecked="{Binding IsMusicEnabled}"
+                                      Foreground="{DynamicResource DefaultForeground}"/>
+
                             <Button Content="Lưu giao diện" Margin="0,16,0,0" Width="160"
                                     Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
                                     Command="{Binding SaveSettingsCommand}"/>

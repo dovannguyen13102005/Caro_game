@@ -15,6 +15,7 @@ public partial class MainViewModel
         int rows = ruleOption.Rows;
         int cols = ruleOption.Columns;
         bool allowExpansion = ruleOption.AllowExpansion;
+        bool isFreestyle = string.Equals(ruleOption.Name, "Freestyle", StringComparison.OrdinalIgnoreCase);
 
         bool playerStarts = FirstPlayer switch
         {
@@ -24,9 +25,27 @@ public partial class MainViewModel
             _ => true
         };
 
+        if (!IsAIEnabled)
+        {
+            playerStarts = true;
+        }
+
         string startingSymbol = "X";
         string humanSymbol = playerStarts ? startingSymbol : "O";
         string aiSymbol = humanSymbol == "X" ? "O" : "X";
+
+        if (!IsAIEnabled)
+        {
+            humanSymbol = startingSymbol;
+            aiSymbol = "O";
+
+            if (isFreestyle)
+            {
+                rows = cols = 35;
+                allowExpansion = true;
+            }
+        }
+
         bool aiPlaysBlack = IsAIEnabled ? aiSymbol == "X" : true;
 
         ApplyRuleConfiguration(ruleOption, aiPlaysBlack);

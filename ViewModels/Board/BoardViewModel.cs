@@ -49,7 +49,7 @@ public partial class BoardViewModel : BaseViewModel
     private readonly string _aiSymbol;
     private readonly IRule _rule;
     private readonly bool _allowBoardExpansion;
-    private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromMilliseconds(600);
+    private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromSeconds(2);
     private Cell? _lastMoveCell;
     private Cell? _lastHumanMoveCell;
     private string? _lastMovePlayer;

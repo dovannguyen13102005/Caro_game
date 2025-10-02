@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace Caro_game
@@ -108,6 +108,30 @@ namespace Caro_game
         {
             Send($"TURN {x},{y}");
             return ReceiveLine(); // trả về "x,y"
+        }
+
+        public string? SyncBoard(IEnumerable<(int X, int Y, int Player)> moves)
+        {
+            if (moves == null)
+            {
+                return null;
+            }
+
+            var entries = new List<(int X, int Y, int Player)>(moves);
+            if (entries.Count == 0)
+            {
+                return null;
+            }
+
+            Send("BOARD");
+
+            foreach (var (x, y, player) in entries)
+            {
+                Send($"{x},{y},{player}");
+            }
+
+            Send("DONE");
+            return ReceiveLine();
         }
 
         public void End()

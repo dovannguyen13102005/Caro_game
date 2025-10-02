@@ -20,6 +20,7 @@ namespace Caro_game.Models
         public bool IsPaused { get; set; }
         public DateTime SavedAt { get; set; }
         public List<CellState> Cells { get; set; } = new();
+        public List<MoveState> Moves { get; set; } = new();
         public int? LastMoveRow { get; set; }
         public int? LastMoveCol { get; set; }
         public string? LastMovePlayer { get; set; }

@@ -51,7 +51,15 @@ public partial class MainViewModel
                     Col = c.Col,
                     Value = c.Value,
                     IsWinningCell = c.IsWinningCell
-                }).ToList()
+                }).ToList(),
+                Moves = Board.MoveHistory
+                    .Select(m => new MoveState
+                    {
+                        Row = m.Row,
+                        Col = m.Col,
+                        Player = m.Player
+                    })
+                    .ToList()
             };
 
             var lastMove = Board.LastMovePosition;
@@ -142,7 +150,7 @@ public partial class MainViewModel
         SelectedRuleOption = ruleOption;
         var ruleInstance = ruleOption.CreateRule();
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", targetMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", targetMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion, skipProfessionalAutoMoveDuringInit: true)
         {
             IsAIEnabled = state.IsAIEnabled
         };
@@ -200,6 +208,25 @@ public partial class MainViewModel
         StatusMessage = hasWinner
             ? "Ván đấu đã kết thúc."
             : IsGamePaused ? "Đang tạm dừng" : "Đang chơi";
+
+        bool aiStarted = false;
+        if (!hasWinner && Board != null && Board.IsAIEnabled)
+        {
+            if (Board.AIMode == "Chuyên nghiệp")
+            {
+                aiStarted = Board.RestoreProfessionalEngineState();
+            }
+
+            if (!aiStarted)
+            {
+                Board.TryStartAITurn();
+            }
+        }
+
+        if (Board != null)
+        {
+            SelectedAIMode = Board.AIMode;
+        }
 
         CommandManager.InvalidateRequerySuggested();
     }

@@ -50,6 +50,8 @@ public partial class BoardViewModel : BaseViewModel
     private readonly IRule _rule;
     private readonly bool _allowBoardExpansion;
     private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromMilliseconds(600);
+    private readonly List<MoveState> _moveHistory;
+    private bool _skipProfessionalAutoMoveDuringInit;
     private Cell? _lastMoveCell;
     private Cell? _lastHumanMoveCell;
     private string? _lastMovePlayer;
@@ -130,6 +132,7 @@ public partial class BoardViewModel : BaseViewModel
         ? (_lastHumanMoveCell.Row, _lastHumanMoveCell.Col)
         : null;
     public string? LastMovePlayer => _lastMovePlayer;
+    public IReadOnlyList<MoveState> MoveHistory => _moveHistory;
 
     private EngineClient? _engine;
 
@@ -143,10 +146,13 @@ public partial class BoardViewModel : BaseViewModel
         string? humanSymbol = null,
         IRule? rule = null,
         string? ruleName = null,
-        bool allowBoardExpansion = false)
+        bool allowBoardExpansion = false,
+        bool skipProfessionalAutoMoveDuringInit = false)
     {
         Rows = rows;
         Columns = columns;
+        _moveHistory = new List<MoveState>();
+        _skipProfessionalAutoMoveDuringInit = skipProfessionalAutoMoveDuringInit;
         AIMode = aiMode;
         CurrentPlayer = firstPlayer.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 

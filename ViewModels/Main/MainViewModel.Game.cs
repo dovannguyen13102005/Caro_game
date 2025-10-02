@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
 using Caro_game.Models;
@@ -9,10 +10,7 @@ public partial class MainViewModel
 {
     private void StartGame(object? parameter)
     {
-        bool isProfessionalMode = SelectedAIMode == "Chuyên nghiệp";
-        int baseSize = isProfessionalMode ? 19 : 35;
-        int rows = baseSize;
-        int cols = baseSize;
+        var rule = SelectedRule ?? GameRules.First();
 
         bool playerStarts = FirstPlayer switch
         {
@@ -25,7 +23,7 @@ public partial class MainViewModel
         string startingSymbol = "X";
         string humanSymbol = playerStarts ? startingSymbol : "O";
 
-        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol)
+        var board = new BoardViewModel(rule, startingSymbol, SelectedAIMode, humanSymbol)
         {
             IsAIEnabled = IsAIEnabled
         };

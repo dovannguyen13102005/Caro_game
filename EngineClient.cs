@@ -110,6 +110,16 @@ namespace Caro_game
             return ReceiveLine(); // trả về "x,y"
         }
 
+        public void SetRule(string ruleKeyword)
+        {
+            if (string.IsNullOrWhiteSpace(ruleKeyword))
+            {
+                return;
+            }
+
+            Send($"INFO rule {ruleKeyword}");
+        }
+
         public void End()
         {
             try { Send("END"); } catch { }

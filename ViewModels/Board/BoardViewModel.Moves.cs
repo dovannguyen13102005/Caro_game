@@ -10,6 +10,75 @@ namespace Caro_game.ViewModels;
 
 public partial class BoardViewModel
 {
+    private static readonly (int dRow, int dCol)[] DirectionVectors =
+    {
+        (0, 1),
+        (1, 0),
+        (1, 1),
+        (1, -1)
+    };
+
+    private static readonly string[] OpenFourPatterns =
+    {
+        ".XXXX.",
+        ".XXX.X.",
+        ".X.XXX.",
+        ".XX.XX."
+    };
+
+    private static readonly string[] OpenThreePatterns =
+    {
+        ".XXX.",
+        ".XX.X.",
+        ".X.XX."
+    };
+
+    private bool IsMoveLegal(int row, int col, string player, out string? violationMessage)
+    {
+        violationMessage = null;
+
+        if (RuleType != GameRuleType.Renju || !string.Equals(player, "X", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        foreach (var (dRow, dCol) in DirectionVectors)
+        {
+            int count = 1 + CountDirectionSimulate(row, col, dRow, dCol, player) +
+                        CountDirectionSimulate(row, col, -dRow, -dCol, player);
+
+            if (count > 5)
+            {
+                violationMessage = "Luật Renju: Không được tạo hơn 5 quân liên tiếp (overline).";
+                return false;
+            }
+        }
+
+        if (CheckExactFive(row, col, player))
+        {
+            return true;
+        }
+
+        int openFours = CountOpenFours(row, col, player);
+        if (openFours >= 2)
+        {
+            violationMessage = "Luật Renju: Không được tạo đúp bốn (double-four).";
+            return false;
+        }
+
+        int openThrees = CountOpenThrees(row, col, player);
+        if (openThrees >= 2)
+        {
+            violationMessage = "Luật Renju: Không được tạo đúp ba (double-three).";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsMoveLegalForRule(int row, int col, string player)
+        => IsMoveLegal(row, col, player, out _);
+
     public void MakeHumanMove(Cell cell)
         => ExecuteMove(cell, isAiMove: false);
 
@@ -26,6 +95,19 @@ public partial class BoardViewModel
         }
 
         var movingPlayer = CurrentPlayer;
+
+        if (!IsMoveLegal(cell.Row, cell.Col, movingPlayer, out var violationMessage))
+        {
+            if (!isAiMove && !string.IsNullOrEmpty(violationMessage))
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show(violationMessage, "Luật Renju", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
+            }
+            return;
+        }
+
         int originalRow = cell.Row;
         int originalCol = cell.Col;
 
@@ -218,6 +300,7 @@ public partial class BoardViewModel
                             string.IsNullOrEmpty(c.Value) &&
                             Math.Abs(c.Row - reference.Row) <= 1 &&
                             Math.Abs(c.Col - reference.Col) <= 1)
+                        .Where(c => IsMoveLegalForRule(c.Row, c.Col, _aiSymbol))
                         .ToList();
 
                     if (neighbors.Count > 0)
@@ -228,7 +311,9 @@ public partial class BoardViewModel
 
                 if (bestCell == null)
                 {
-                    var emptyCells = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                    var emptyCells = Cells
+                        .Where(c => string.IsNullOrEmpty(c.Value) && IsMoveLegalForRule(c.Row, c.Col, _aiSymbol))
+                        .ToList();
                     if (emptyCells.Count > 0)
                     {
                         bestCell = emptyCells[Random.Shared.Next(emptyCells.Count)];
@@ -238,12 +323,14 @@ public partial class BoardViewModel
             else
             {
                 var candidates = Cells
-                    .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2))
+                    .Where(c => string.IsNullOrEmpty(c.Value) && HasNeighbor(c, 2) && IsMoveLegalForRule(c.Row, c.Col, _aiSymbol))
                     .ToList();
 
                 if (!candidates.Any())
                 {
-                    candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
+                    candidates = Cells
+                        .Where(c => string.IsNullOrEmpty(c.Value) && IsMoveLegalForRule(c.Row, c.Col, _aiSymbol))
+                        .ToList();
                 }
 
                 int bestScore = int.MinValue;
@@ -298,7 +385,18 @@ public partial class BoardViewModel
             int.TryParse(parts[1], out int aiY) &&
             _cellLookup.TryGetValue((aiY, aiX), out var aiCell))
         {
-            Application.Current.Dispatcher.Invoke(() => ExecuteMove(aiCell, true));
+            if (IsMoveLegalForRule(aiCell.Row, aiCell.Col, _aiSymbol))
+            {
+                Application.Current.Dispatcher.Invoke(() => ExecuteMove(aiCell, true));
+            }
+            else
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show("AI đã tạo nước đi vi phạm luật đã chọn.",
+                        "Caro", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
+            }
         }
     }
 
@@ -413,42 +511,36 @@ public partial class BoardViewModel
     }
 
     private bool CheckWin(int row, int col, string player)
-    {
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
-
-        foreach (var dir in directions)
+        => RuleType switch
         {
-            int count = 1;
-            count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
-            count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
-
-            if (count >= 5)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+            GameRuleType.Freestyle => CheckFreestyleWin(row, col, player),
+            GameRuleType.Standard => CheckExactFive(row, col, player),
+            GameRuleType.Renju => CheckExactFive(row, col, player),
+            _ => CheckFreestyleWin(row, col, player)
+        };
 
     private void HighlightWinningCells(int row, int col, string player)
     {
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
-
-        foreach (var dir in directions)
+        foreach (var (dRow, dCol) in DirectionVectors)
         {
-            var line = GetLine(row, col, dir[0], dir[1], player);
-            var opposite = GetLine(row, col, -dir[0], -dir[1], player);
-            line.AddRange(opposite);
+            var forward = GetLine(row, col, dRow, dCol, player);
+            var backward = GetLine(row, col, -dRow, -dCol, player);
+            var combined = new List<Cell>(forward.Count + backward.Count + 1);
+            combined.AddRange(forward);
+            combined.AddRange(backward);
 
             if (_cellLookup.TryGetValue((row, col), out var center))
             {
-                line.Add(center);
+                combined.Add(center);
             }
 
-            if (line.Count >= 5)
+            bool isWinningLine = RuleType == GameRuleType.Freestyle
+                ? combined.Count >= 5
+                : combined.Count == 5;
+
+            if (isWinningLine)
             {
-                foreach (var cellInLine in line)
+                foreach (var cellInLine in combined.Distinct())
                 {
                     cellInLine.IsWinningCell = true;
                 }
@@ -478,5 +570,154 @@ public partial class BoardViewModel
         }
 
         return list;
+    }
+
+    private bool CheckFreestyleWin(int row, int col, string player)
+    {
+        foreach (var (dRow, dCol) in DirectionVectors)
+        {
+            int count = 1 + CountDirectionSimulate(row, col, dRow, dCol, player) +
+                        CountDirectionSimulate(row, col, -dRow, -dCol, player);
+
+            if (count >= 5)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool CheckExactFive(int row, int col, string player)
+    {
+        foreach (var (dRow, dCol) in DirectionVectors)
+        {
+            int forward = CountDirectionSimulate(row, col, dRow, dCol, player);
+            int backward = CountDirectionSimulate(row, col, -dRow, -dCol, player);
+            int total = forward + backward + 1;
+
+            if (total == 5)
+            {
+                bool forwardBounded = IsRunTerminated(row, col, dRow, dCol, forward, player);
+                bool backwardBounded = IsRunTerminated(row, col, -dRow, -dCol, backward, player);
+
+                if (forwardBounded && backwardBounded)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsRunTerminated(int row, int col, int dRow, int dCol, int count, string player)
+    {
+        int targetRow = row + (count + 1) * dRow;
+        int targetCol = col + (count + 1) * dCol;
+
+        if (!_cellLookup.TryGetValue((targetRow, targetCol), out var nextCell))
+        {
+            return true;
+        }
+
+        return !string.Equals(nextCell.Value, player, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int CountOpenFours(int row, int col, string player)
+    {
+        char playerChar = char.ToUpperInvariant(player[0]);
+        int total = 0;
+
+        foreach (var (dRow, dCol) in DirectionVectors)
+        {
+            string line = BuildLinePattern(row, col, dRow, dCol, playerChar);
+            total += CountPatternMatches(line, playerChar, line.Length / 2, 4, OpenFourPatterns);
+        }
+
+        return total;
+    }
+
+    private int CountOpenThrees(int row, int col, string player)
+    {
+        char playerChar = char.ToUpperInvariant(player[0]);
+        int total = 0;
+
+        foreach (var (dRow, dCol) in DirectionVectors)
+        {
+            string line = BuildLinePattern(row, col, dRow, dCol, playerChar);
+            total += CountPatternMatches(line, playerChar, line.Length / 2, 3, OpenThreePatterns);
+        }
+
+        return total;
+    }
+
+    private string BuildLinePattern(int row, int col, int dRow, int dCol, char playerChar, int range = 5)
+    {
+        var chars = new char[range * 2 + 1];
+
+        for (int i = -range; i <= range; i++)
+        {
+            int r = row + i * dRow;
+            int c = col + i * dCol;
+            char value;
+
+            if (i == 0)
+            {
+                value = playerChar;
+            }
+            else if (!_cellLookup.TryGetValue((r, c), out var cell))
+            {
+                value = '#';
+            }
+            else if (string.IsNullOrEmpty(cell.Value))
+            {
+                value = '.';
+            }
+            else
+            {
+                value = char.ToUpperInvariant(cell.Value[0]);
+            }
+
+            chars[i + range] = value;
+        }
+
+        return new string(chars);
+    }
+
+    private int CountPatternMatches(string line, char playerChar, int centerIndex, int expectedStones, string[] basePatterns)
+    {
+        var matches = new HashSet<(int Start, int End)>();
+
+        foreach (var basePattern in basePatterns)
+        {
+            string pattern = basePattern.Replace('X', playerChar);
+            int searchIndex = 0;
+
+            while (searchIndex <= line.Length - pattern.Length)
+            {
+                int foundIndex = line.IndexOf(pattern, searchIndex, StringComparison.Ordinal);
+                if (foundIndex == -1)
+                {
+                    break;
+                }
+
+                int endIndex = foundIndex + pattern.Length - 1;
+                if (foundIndex <= centerIndex && endIndex >= centerIndex)
+                {
+                    string segment = line.Substring(foundIndex, pattern.Length);
+                    int stoneCount = segment.Count(ch => ch == playerChar);
+
+                    if (stoneCount == expectedStones)
+                    {
+                        matches.Add((foundIndex, endIndex));
+                    }
+                }
+
+                searchIndex = foundIndex + 1;
+            }
+        }
+
+        return matches.Count;
     }
 }

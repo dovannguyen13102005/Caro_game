@@ -10,6 +10,9 @@ namespace Caro_game.ViewModels;
 
 public partial class BoardViewModel : BaseViewModel
 {
+    private readonly GameRuleOption _rule;
+    private readonly bool _allowBoardExpansion;
+
     private int _rows;
     public int Rows
     {
@@ -116,6 +119,8 @@ public partial class BoardViewModel : BaseViewModel
         }
     }
 
+    public GameRuleOption Rule => _rule;
+    public GameRuleType RuleType => _rule.Type;
     public string InitialPlayer => _initialPlayer;
     public string HumanSymbol => _humanSymbol;
     public string AISymbol => _aiSymbol;
@@ -131,10 +136,13 @@ public partial class BoardViewModel : BaseViewModel
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
+    public BoardViewModel(GameRuleOption rule, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
     {
-        Rows = rows;
-        Columns = columns;
+        _rule = rule ?? throw new ArgumentNullException(nameof(rule));
+        _allowBoardExpansion = rule.AllowsExpansion;
+
+        Rows = rule.BoardSize;
+        Columns = rule.BoardSize;
         AIMode = aiMode;
         CurrentPlayer = firstPlayer.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 
@@ -144,13 +152,13 @@ public partial class BoardViewModel : BaseViewModel
             : (humanSymbol.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X");
         _aiSymbol = _humanSymbol == "X" ? "O" : "X";
         Cells = new ObservableCollection<Cell>();
-        _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
+        _cellLookup = new Dictionary<(int, int), Cell>(Rows * Columns);
         _candidatePositions = new HashSet<(int, int)>();
 
-        for (int i = 0; i < rows * columns; i++)
+        for (int i = 0; i < Rows * Columns; i++)
         {
-            int r = i / columns;
-            int c = i % columns;
+            int r = i / Columns;
+            int c = i % Columns;
             var cell = new Cell(r, c, this);
             Cells.Add(cell);
             _cellLookup[(r, c)] = cell;

@@ -46,6 +46,11 @@ public partial class BoardViewModel
                 return;
             }
 
+            if (!string.IsNullOrWhiteSpace(_rule.EngineKeyword))
+            {
+                _engine.SetRule(_rule.EngineKeyword);
+            }
+
             // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi luôn
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {

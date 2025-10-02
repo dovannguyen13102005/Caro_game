@@ -39,6 +39,14 @@
                                         <ComboBox Width="120" ItemsSource="{Binding Players}" SelectedItem="{Binding FirstPlayer}"/>
                                     </StackPanel>
 
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <TextBlock Text="Luật:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
+                                        <ComboBox Width="120"
+                                                  ItemsSource="{Binding GameRules}"
+                                                  SelectedItem="{Binding SelectedRule}"
+                                                  DisplayMemberPath="Name"/>
+                                    </StackPanel>
+
                                     <CheckBox Content="Chơi với máy" Margin="0,10,0,0"
                                               IsChecked="{Binding IsAIEnabled}" Foreground="{DynamicResource DefaultForeground}"/>
 
@@ -46,7 +54,8 @@
                                         <TextBlock Text="Cấp độ:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120"
                                                   ItemsSource="{Binding AIModes}"
-                                                  SelectedItem="{Binding SelectedAIMode}"/>
+                                                  SelectedItem="{Binding SelectedAIMode}"
+                                                  IsEnabled="{Binding IsAIEnabled}"/>
                                     </StackPanel>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
@@ -181,7 +190,7 @@
 
                                 <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc hoặc chéo." Foreground="{DynamicResource DefaultForeground}"/>
                                 <TextBlock Text="• Lượt đi: X luôn đi trước, O đi sau." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Bàn cờ: mặc định 30×30, phù hợp chơi freestyle." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Bàn cờ: Freestyle 19×19, Standard/Renju 15×15." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
 
                                 <Separator Margin="0,8"/>
                                 <TextBlock Text="Các biến thể luật" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentForegroundBrush}" Margin="0,6,0,0"/>
@@ -196,8 +205,8 @@
                                 <TextBlock Text="   - Không có luật cấm đặc biệt." Foreground="{DynamicResource DefaultForeground}"/>
 
                                 <TextBlock Text="• Renju (Quốc tế):" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}" Margin="0,6,0,0"/>
-                                <TextBlock Text="   - X phải tuân theo luật cấm để đảm bảo công bằng." Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="   - Cấm overline: không được xếp 6 quân trở lên." Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="   - Quân Đen (X) bị cấm overline, đúp ba và đúp bốn." Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="   - Nếu tạo đúng 5 quân liên tiếp vẫn được tính thắng." Foreground="{DynamicResource DefaultForeground}"/>
                                 <TextBlock Text="   - Cấm double-three: không được tạo đồng thời 2 thế tam mở." Foreground="{DynamicResource DefaultForeground}"/>
                                 <TextBlock Text="   - Cấm double-four: không được tạo đồng thời 2 thế tứ." Foreground="{DynamicResource DefaultForeground}"/>
                                 <TextBlock Text="   - O không bị cấm, chỉ cần đạt 5 quân là thắng." Foreground="{DynamicResource DefaultForeground}"/>

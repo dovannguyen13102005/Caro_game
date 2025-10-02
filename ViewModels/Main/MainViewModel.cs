@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -22,6 +23,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private bool _isAIEnabled;
     private string _selectedAIMode;
     private TimeOption _selectedTimeOption;
+    private GameRuleOption _selectedRule;
     private string _selectedTheme;
     private bool _isSoundEnabled;
     private bool _isGameActive;
@@ -35,6 +37,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<string> Players { get; }
     public ObservableCollection<string> AIModes { get; }
     public ObservableCollection<TimeOption> TimeOptions { get; }
+    public ObservableCollection<GameRuleOption> GameRules { get; }
 
     public ObservableCollection<string> Themes { get; } =
         new ObservableCollection<string> { DefaultDarkThemeLabel, "Light" };
@@ -95,6 +98,19 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (_selectedAIMode != value)
             {
                 _selectedAIMode = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public GameRuleOption SelectedRule
+    {
+        get => _selectedRule;
+        set
+        {
+            if (_selectedRule != value && value != null)
+            {
+                _selectedRule = value;
                 OnPropertyChanged();
             }
         }
@@ -217,6 +233,13 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     public MainViewModel()
     {
+        GameRules = new ObservableCollection<GameRuleOption>
+        {
+            new GameRuleOption(GameRuleType.Freestyle, "Freestyle", 19, "freestyle"),
+            new GameRuleOption(GameRuleType.Standard, "Standard Gomoku", 15, "standard"),
+            new GameRuleOption(GameRuleType.Renju, "Renju", 15, "renju")
+        };
+
         Players = new ObservableCollection<string>
         {
             "Bạn đi trước",
@@ -241,6 +264,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         SelectedAIMode = "Khó";
 
         SelectedTheme = DefaultDarkThemeLabel;
+        SelectedRule = GameRules.First();
         IsSoundEnabled = true;
         _selectedTimeOption = TimeOptions[3];
         RemainingTime = TimeSpan.FromMinutes(_selectedTimeOption.Minutes);

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using Caro_game;
+using Caro_game.Models;
 
 namespace Caro_game.ViewModels;
 
@@ -46,14 +47,12 @@ public partial class BoardViewModel
                 return;
             }
 
-            // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi 
-            if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
-            {
-                var aiMove = _engine.Begin();
-                PlaceAiIfValid(aiMove);
-            }
+            RestoreProfessionalEngineStateFromHistory();
 
-            SyncProfessionalEngineWithMoves();
+            if (!_isRestoringState)
+            {
+                ResumePendingAiTurn();
+            }
         }
         catch (Exception ex)
         {
@@ -78,44 +77,7 @@ public partial class BoardViewModel
     {
         _engine?.Dispose();
         _engine = null;
-    }
-
-    private void SyncProfessionalEngineWithMoves()
-    {
-        if (_engine == null || _moveHistory.Count == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            var moves = _moveHistory
-                .Select(m => (X: m.Col, Y: m.Row, Player: GetPlayerValue(m.Player)))
-                .ToList();
-
-            var response = _engine.SyncBoard(moves);
-
-            if (!string.IsNullOrWhiteSpace(response) && CurrentPlayer == _aiSymbol && !IsPaused)
-            {
-                if (TryParseMove(response, out var x, out var y) &&
-                    _cellLookup.TryGetValue((y, x), out var cell) &&
-                    string.IsNullOrEmpty(cell.Value))
-                {
-                    PlaceAiIfValid(response);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Application.Current.Dispatcher?.Invoke(() =>
-            {
-                MessageBox.Show(
-                    $"Không thể đồng bộ trạng thái với AI Chuyên nghiệp.\nChi tiết: {ex.Message}",
-                    "Chuyên nghiệp",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-            });
-        }
+        _pendingResumeAfterLoad = false;
     }
 
     private static bool TryParseMove(string? move, out int x, out int y)
@@ -133,5 +95,87 @@ public partial class BoardViewModel
         }
 
         return int.TryParse(parts[0], out x) && int.TryParse(parts[1], out y);
+    }
+
+    private void RestoreProfessionalEngineStateFromHistory()
+    {
+        if (_engine == null)
+        {
+            return;
+        }
+
+        _pendingResumeAfterLoad = false;
+
+        if (_moveHistory.Count == 0)
+        {
+            if (CurrentPlayer == _aiSymbol && !IsPaused)
+            {
+                _pendingResumeAfterLoad = true;
+            }
+
+            return;
+        }
+
+        int index = 0;
+
+        if (_moveHistory[0].Player == _aiSymbol)
+        {
+            ValidateRestoredAiMove(_engine.Begin(), _moveHistory[0]);
+            index++;
+        }
+
+        while (index < _moveHistory.Count)
+        {
+            var move = _moveHistory[index];
+
+            if (move.Player != _humanSymbol)
+            {
+                throw new InvalidOperationException("Thứ tự nước đi đã lưu không hợp lệ.");
+            }
+
+            bool hasFollowingAiMove = index + 1 < _moveHistory.Count &&
+                                      _moveHistory[index + 1].Player == _aiSymbol;
+
+            if (!hasFollowingAiMove)
+            {
+                break;
+            }
+
+            var expectedAiMove = _moveHistory[index + 1];
+            var aiResponse = _engine.Turn(move.Col, move.Row);
+            ValidateRestoredAiMove(aiResponse, expectedAiMove);
+
+            index += 2;
+        }
+
+        if (CurrentPlayer == _aiSymbol && !IsPaused)
+        {
+            _pendingResumeAfterLoad = true;
+        }
+    }
+
+    private void ValidateRestoredAiMove(string? response, MoveState expected)
+    {
+        if (!TryParseMove(response, out var x, out var y) || x != expected.Col || y != expected.Row)
+        {
+            throw new InvalidOperationException("Nước đi đã lưu không khớp với phản hồi từ AI chuyên nghiệp.");
+        }
+    }
+
+    public void ResumePendingAiTurn()
+    {
+        if (!_pendingResumeAfterLoad)
+        {
+            return;
+        }
+
+        _pendingResumeAfterLoad = false;
+
+        if (IsPaused)
+        {
+            return;
+        }
+
+        TriggerAiTurnIfNeeded(_lastMoveCell, _lastMovePlayer);
     }
 }

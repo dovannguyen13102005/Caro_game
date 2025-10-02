@@ -134,7 +134,7 @@ public partial class MainViewModel
         SelectedRuleOption = ruleOption;
         var ruleInstance = ruleOption.CreateRule();
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", targetMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", targetMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion, isRestoringState: true)
         {
             IsAIEnabled = state.IsAIEnabled
         };
@@ -168,6 +168,7 @@ public partial class MainViewModel
         if (Board != null)
         {
             Board.IsPaused = IsGamePaused || hasWinner;
+            Board.ResumePendingAiTurn();
         }
 
         if (_configuredDuration > TimeSpan.Zero && !IsGamePaused && !hasWinner)

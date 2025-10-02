@@ -100,8 +100,10 @@ public partial class BoardViewModel
 
         if (AIMode == "Chuyên nghiệp" && IsAIEnabled)
         {
-            SyncProfessionalEngineWithMoves();
+            RestoreProfessionalEngineStateFromHistory();
         }
+
+        _isRestoringState = false;
     }
 
     private void RebuildCandidatePositions()

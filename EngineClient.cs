@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace Caro_game
@@ -120,21 +118,6 @@ namespace Caro_game
                     _process.Kill(true);
             }
             catch { }
-        }
-
-        public string? SyncBoard(IEnumerable<(int X, int Y, int Player)> moves)
-        {
-            Send("BOARD");
-
-            foreach (var move in moves)
-            {
-                Send($"{move.X},{move.Y},{move.Player}");
-            }
-
-            Send("DONE");
-
-            var response = ReceiveLine();
-            return string.IsNullOrWhiteSpace(response) ? null : response;
         }
 
         public void Dispose()

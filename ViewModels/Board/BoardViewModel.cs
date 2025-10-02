@@ -44,6 +44,7 @@ public partial class BoardViewModel : BaseViewModel
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
     private readonly object _candidateLock = new();
     private readonly string _initialPlayer;
+    private readonly GameRuleType _rule;
     private readonly string _humanSymbol;
     private readonly string _aiSymbol;
     private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromMilliseconds(600);
@@ -75,6 +76,15 @@ public partial class BoardViewModel : BaseViewModel
             {
                 _isAIEnabled = value;
                 OnPropertyChanged();
+
+                if (_isAIEnabled && AIMode == "Chuyên nghiệp")
+                {
+                    TryInitializeProfessionalEngine();
+                }
+                else if (!_isAIEnabled)
+                {
+                    DisposeEngine();
+                }
             }
         }
     }
@@ -119,6 +129,7 @@ public partial class BoardViewModel : BaseViewModel
     public string InitialPlayer => _initialPlayer;
     public string HumanSymbol => _humanSymbol;
     public string AISymbol => _aiSymbol;
+    public GameRuleType Rule => _rule;
     public (int Row, int Col)? LastMovePosition => _lastMoveCell != null
         ? (_lastMoveCell.Row, _lastMoveCell.Col)
         : null;
@@ -131,7 +142,7 @@ public partial class BoardViewModel : BaseViewModel
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
+    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null, GameRuleType rule = GameRuleType.Freestyle)
     {
         Rows = rows;
         Columns = columns;
@@ -139,6 +150,7 @@ public partial class BoardViewModel : BaseViewModel
         CurrentPlayer = firstPlayer.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 
         _initialPlayer = CurrentPlayer;
+        _rule = rule;
         _humanSymbol = string.IsNullOrWhiteSpace(humanSymbol)
             ? CurrentPlayer
             : (humanSymbol.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X");

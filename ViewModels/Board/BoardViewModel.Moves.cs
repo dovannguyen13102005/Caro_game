@@ -10,6 +10,8 @@ namespace Caro_game.ViewModels;
 
 public partial class BoardViewModel
 {
+    private const int ForbiddenMoveScore = -1000000;
+
     public void MakeHumanMove(Cell cell)
         => ExecuteMove(cell, isAiMove: false);
 
@@ -28,6 +30,16 @@ public partial class BoardViewModel
         var movingPlayer = CurrentPlayer;
         int originalRow = cell.Row;
         int originalCol = cell.Col;
+
+        if (IsMoveForbiddenByRenju(cell.Row, cell.Col, movingPlayer))
+        {
+            if (!isAiMove)
+            {
+                MessageBox.Show("Nước đi này bị cấm do tạo overline theo luật Renju.",
+                    "Renju", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            return;
+        }
 
         if (_lastMoveCell != null)
         {
@@ -246,16 +258,46 @@ public partial class BoardViewModel
                     candidates = Cells.Where(c => string.IsNullOrEmpty(c.Value)).ToList();
                 }
 
+                if (Rule == GameRuleType.Renju && _aiSymbol == "X")
+                {
+                    candidates = candidates
+                        .Where(c => !IsMoveForbiddenByRenju(c.Row, c.Col, _aiSymbol))
+                        .ToList();
+
+                    if (!candidates.Any())
+                    {
+                        candidates = Cells
+                            .Where(c => string.IsNullOrEmpty(c.Value) && !IsMoveForbiddenByRenju(c.Row, c.Col, _aiSymbol))
+                            .ToList();
+                    }
+                }
+
                 int bestScore = int.MinValue;
 
                 foreach (var candidate in candidates)
                 {
+                    if (IsMoveForbiddenByRenju(candidate.Row, candidate.Col, _aiSymbol))
+                    {
+                        continue;
+                    }
+
                     int score = EvaluateCellAdvanced(candidate);
                     if (score > bestScore)
                     {
                         bestScore = score;
                         bestCell = candidate;
                     }
+                }
+
+                if (bestCell == null)
+                {
+                    dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show("AI không tìm được nước đi hợp lệ theo luật hiện tại.",
+                            "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        IsAIEnabled = false;
+                    });
+                    return;
                 }
             }
 
@@ -345,6 +387,11 @@ public partial class BoardViewModel
 
     private int EvaluateCellAdvanced(Cell cell)
     {
+        if (IsMoveForbiddenByRenju(cell.Row, cell.Col, _aiSymbol))
+        {
+            return ForbiddenMoveScore;
+        }
+
         int score = 0;
         score += EvaluatePotential(cell, _aiSymbol);
         score += EvaluatePotential(cell, _humanSymbol) * 2;
@@ -367,6 +414,11 @@ public partial class BoardViewModel
 
     private int EvaluatePotential(Cell cell, string player)
     {
+        if (IsMoveForbiddenByRenju(cell.Row, cell.Col, player))
+        {
+            return ForbiddenMoveScore;
+        }
+
         int totalScore = 0;
         int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
 
@@ -376,7 +428,9 @@ public partial class BoardViewModel
             count += CountDirectionSimulate(cell.Row, cell.Col, dir[0], dir[1], player);
             count += CountDirectionSimulate(cell.Row, cell.Col, -dir[0], -dir[1], player);
 
-            totalScore += count switch
+            int normalized = NormalizeCountForRule(count, player);
+
+            totalScore += normalized switch
             {
                 >= 5 => 10000,
                 4 => 1000,
@@ -422,7 +476,7 @@ public partial class BoardViewModel
             count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
             count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
 
-            if (count >= 5)
+            if (IsWinningLineLength(count, player))
             {
                 return true;
             }
@@ -446,7 +500,7 @@ public partial class BoardViewModel
                 line.Add(center);
             }
 
-            if (line.Count >= 5)
+            if (IsWinningLineLength(line.Count, player))
             {
                 foreach (var cellInLine in line)
                 {
@@ -478,5 +532,50 @@ public partial class BoardViewModel
         }
 
         return list;
+    }
+
+    private bool IsWinningLineLength(int count, string player)
+    {
+        return Rule switch
+        {
+            GameRuleType.Freestyle => count >= 5,
+            GameRuleType.Standard => count == 5,
+            GameRuleType.Renju => player == "X" ? count == 5 : count >= 5,
+            _ => count >= 5
+        };
+    }
+
+    private int NormalizeCountForRule(int count, string player)
+    {
+        if (count > 5 && !IsWinningLineLength(count, player))
+        {
+            return 4;
+        }
+
+        return count;
+    }
+
+    private bool IsMoveForbiddenByRenju(int row, int col, string player)
+    {
+        if (Rule != GameRuleType.Renju || player != "X")
+        {
+            return false;
+        }
+
+        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
+
+        foreach (var dir in directions)
+        {
+            int count = 1;
+            count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
+            count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
+
+            if (count > 5)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

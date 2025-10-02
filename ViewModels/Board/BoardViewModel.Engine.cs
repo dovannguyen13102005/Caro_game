@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using Caro_game;
+using Caro_game.Models;
 
 namespace Caro_game.ViewModels;
 
@@ -10,6 +11,11 @@ public partial class BoardViewModel
 {
     private void TryInitializeProfessionalEngine()
     {
+        if (!IsAIEnabled)
+        {
+            return;
+        }
+
         DisposeEngine();
 
         // 🔹 Xác định thư mục gốc project (từ bin quay ngược ra)
@@ -18,7 +24,9 @@ public partial class BoardViewModel
         );
 
         // 🔹 Đường dẫn tới AI ngoài repo
-        var enginePath = Path.Combine(projectRoot, "AI", "pbrain-rapfi_avx2.exe");
+        var aiDirectory = Path.Combine(projectRoot, "AI");
+        var enginePath = Path.Combine(aiDirectory, "pbrain-rapfi_avx2.exe");
+        var configPath = ResolveEngineConfigPath(aiDirectory);
 
         if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
         {
@@ -27,9 +35,16 @@ public partial class BoardViewModel
             return;
         }
 
+        if (configPath != null && !File.Exists(configPath))
+        {
+            NotifyProfessionalModeUnavailable("Thiếu tệp cấu hình luật cho engine Rapfi.\n" +
+                                              $"Đường dẫn: {configPath}");
+            return;
+        }
+
         try
         {
-            _engine = new EngineClient(enginePath);
+            _engine = new EngineClient(enginePath, configPath);
 
             if (Rows == Columns)
             {
@@ -70,6 +85,19 @@ public partial class BoardViewModel
         {
             MessageBox.Show(message, "Caro", MessageBoxButton.OK, MessageBoxImage.Warning);
         });
+    }
+
+    private string? ResolveEngineConfigPath(string aiDirectory)
+    {
+        string? fileName = Rule switch
+        {
+            GameRuleType.Freestyle => "config_freestyle.toml",
+            GameRuleType.Standard => "config_standard.toml",
+            GameRuleType.Renju => _aiSymbol == "X" ? "config_renju_black.toml" : "config_renju_white.toml",
+            _ => null
+        };
+
+        return fileName == null ? null : Path.Combine(aiDirectory, fileName);
     }
 
     public void DisposeEngine()

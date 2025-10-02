@@ -27,20 +27,21 @@ public partial class MainViewModel
 
         if (dialog.ShowDialog() == true)
         {
-            var state = new GameState
-            {
-                Rows = Board.Rows,
-                Columns = Board.Columns,
-                FirstPlayer = Board.InitialPlayer,
-                CurrentPlayer = Board.CurrentPlayer,
-                HumanSymbol = Board.HumanSymbol,
-                IsAIEnabled = Board.IsAIEnabled,
-                AIMode = Board.AIMode,
-                TimeLimitMinutes = SelectedTimeOption.Minutes,
-                RemainingSeconds = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTime.TotalSeconds) : null,
-                IsPaused = IsGamePaused,
-                SavedAt = DateTime.Now,
-                Cells = Board.Cells.Select(c => new CellState
+                var state = new GameState
+                {
+                    Rows = Board.Rows,
+                    Columns = Board.Columns,
+                    FirstPlayer = Board.InitialPlayer,
+                    CurrentPlayer = Board.CurrentPlayer,
+                    HumanSymbol = Board.HumanSymbol,
+                    IsAIEnabled = Board.IsAIEnabled,
+                    AIMode = Board.AIMode,
+                    RuleName = Board.Rule.ToString(),
+                    TimeLimitMinutes = SelectedTimeOption.Minutes,
+                    RemainingSeconds = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTime.TotalSeconds) : null,
+                    IsPaused = IsGamePaused,
+                    SavedAt = DateTime.Now,
+                    Cells = Board.Cells.Select(c => new CellState
                 {
                     Row = c.Row,
                     Col = c.Col,
@@ -123,10 +124,22 @@ public partial class MainViewModel
         var targetMode = string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!;
         SelectedAIMode = targetMode;
 
+        var ruleType = GameRuleType.Freestyle;
+        if (!string.IsNullOrWhiteSpace(state.RuleName) && Enum.TryParse(state.RuleName, true, out GameRuleType parsedRule))
+        {
+            ruleType = parsedRule;
+        }
+        else if (state.Rows == 15)
+        {
+            ruleType = GameRuleType.Standard;
+        }
+
+        SelectedRuleOption = RuleOptions.FirstOrDefault(r => r.Rule == ruleType) ?? RuleOptions[0];
+
         bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
         var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol, ruleType)
         {
             IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
         };

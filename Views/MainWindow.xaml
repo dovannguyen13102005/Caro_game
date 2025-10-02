@@ -50,6 +50,18 @@
                                     </StackPanel>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <TextBlock Text="Luật chơi:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
+                                        <ComboBox Width="140"
+                                                  ItemsSource="{Binding RuleOptions}"
+                                                  SelectedItem="{Binding SelectedRuleOption}"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding SelectedRuleDescription}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,4,0,0"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Thời gian (phút):" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120"
                                                   ItemsSource="{Binding TimeOptions}"
@@ -181,7 +193,8 @@
 
                                 <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc hoặc chéo." Foreground="{DynamicResource DefaultForeground}"/>
                                 <TextBlock Text="• Lượt đi: X luôn đi trước, O đi sau." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Bàn cờ: mặc định 30×30, phù hợp chơi freestyle." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Bàn cờ: Freestyle dùng bàn 19×19, các luật khác dùng bàn 15×15." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Quân X luôn được xem là quân đen trong mọi chế độ." Margin="0,4,0,0" Foreground="{DynamicResource DefaultForeground}"/>
 
                                 <Separator Margin="0,8"/>
                                 <TextBlock Text="Các biến thể luật" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentForegroundBrush}" Margin="0,6,0,0"/>

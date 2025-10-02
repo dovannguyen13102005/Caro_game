@@ -12,7 +12,7 @@ namespace Caro_game
         private StreamReader? _output;
         private readonly string _logFile;
 
-        public EngineClient(string enginePath)
+        public EngineClient(string enginePath, string? configPath = null)
         {
             _logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "engine_log.txt");
 
@@ -22,8 +22,15 @@ namespace Caro_game
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(enginePath) ?? AppDomain.CurrentDomain.BaseDirectory
             };
+
+            if (!string.IsNullOrWhiteSpace(configPath))
+            {
+                psi.EnvironmentVariables["RAPFI_CONFIG_PATH"] = configPath;
+                Log($"[Init] Using config: {configPath}");
+            }
 
             _process = new Process { StartInfo = psi };
             _process.Start();

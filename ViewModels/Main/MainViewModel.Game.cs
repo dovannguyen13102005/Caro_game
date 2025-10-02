@@ -10,9 +10,9 @@ public partial class MainViewModel
     private void StartGame(object? parameter)
     {
         bool isProfessionalMode = SelectedAIMode == "Chuyên nghiệp";
-        int baseSize = isProfessionalMode ? 19 : 35;
-        int rows = baseSize;
-        int cols = baseSize;
+        var rule = SelectedRule;
+        int rows = rule == GameRuleType.Freestyle ? 19 : 15;
+        int cols = rows;
 
         bool playerStarts = FirstPlayer switch
         {
@@ -25,7 +25,7 @@ public partial class MainViewModel
         string startingSymbol = "X";
         string humanSymbol = playerStarts ? startingSymbol : "O";
 
-        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol)
+        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol, rule)
         {
             IsAIEnabled = IsAIEnabled
         };
@@ -33,6 +33,16 @@ public partial class MainViewModel
         Board = board;
 
         board.TryStartAITurn();
+
+        if (isProfessionalMode && IsAIEnabled)
+        {
+            MessageBox.Show(
+                $"Chế độ chuyên nghiệp - {SelectedRuleOption.DisplayName}.\n" +
+                "Engine Rapfi sẽ tự kiểm tra luật. Quân X luôn được xem là quân đen.",
+                "Chuyên nghiệp",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
 
         _configuredDuration = SelectedTimeOption.Minutes > 0
             ? TimeSpan.FromMinutes(SelectedTimeOption.Minutes)

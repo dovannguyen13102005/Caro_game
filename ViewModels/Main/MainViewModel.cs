@@ -21,6 +21,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private BoardViewModel? _board;
     private bool _isAIEnabled;
     private string _selectedAIMode;
+    private RuleOption _selectedRuleOption;
     private TimeOption _selectedTimeOption;
     private string _selectedTheme;
     private bool _isSoundEnabled;
@@ -35,6 +36,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<string> Players { get; }
     public ObservableCollection<string> AIModes { get; }
     public ObservableCollection<TimeOption> TimeOptions { get; }
+    public ObservableCollection<RuleOption> RuleOptions { get; }
 
     public ObservableCollection<string> Themes { get; } =
         new ObservableCollection<string> { DefaultDarkThemeLabel, "Light" };
@@ -86,6 +88,25 @@ public partial class MainViewModel : INotifyPropertyChanged
             }
         }
     }
+
+    public RuleOption SelectedRuleOption
+    {
+        get => _selectedRuleOption;
+        set
+        {
+            if (_selectedRuleOption != value)
+            {
+                _selectedRuleOption = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SelectedRule));
+                OnPropertyChanged(nameof(SelectedRuleDescription));
+            }
+        }
+    }
+
+    public GameRuleType SelectedRule => SelectedRuleOption?.Rule ?? GameRuleType.Freestyle;
+
+    public string SelectedRuleDescription => SelectedRuleOption?.Description ?? string.Empty;
 
     public string SelectedAIMode
     {
@@ -224,6 +245,12 @@ public partial class MainViewModel : INotifyPropertyChanged
             "Ngẫu nhiên"
         };
         AIModes = new ObservableCollection<string> { "Dễ", "Khó", "Chuyên nghiệp" };
+        RuleOptions = new ObservableCollection<RuleOption>
+        {
+            new RuleOption(GameRuleType.Freestyle, "Freestyle (19×19)", "Luật tự do, đạt 5 quân liên tiếp hoặc hơn đều thắng."),
+            new RuleOption(GameRuleType.Standard, "Gomoku chuẩn (15×15)", "Chỉ đúng 5 quân liên tiếp mới thắng."),
+            new RuleOption(GameRuleType.Renju, "Renju (15×15)", "Luật quốc tế với các hạn chế cho quân đen (X).")
+        };
         TimeOptions = new ObservableCollection<TimeOption>
         {
             new TimeOption(0, "Không giới hạn"),
@@ -239,6 +266,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         FirstPlayer = Players[0];
         IsAIEnabled = true;
         SelectedAIMode = "Khó";
+        SelectedRuleOption = RuleOptions[0];
 
         SelectedTheme = DefaultDarkThemeLabel;
         IsSoundEnabled = true;

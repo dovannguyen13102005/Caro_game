@@ -1,12 +1,15 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Caro_game.Commands;
 using Caro_game.Models;
+using Caro_game.Rules;
 
 namespace Caro_game.ViewModels;
 
@@ -31,10 +34,12 @@ public partial class MainViewModel : INotifyPropertyChanged
     private DispatcherTimer? _gameTimer;
     private TimeSpan _configuredDuration = TimeSpan.Zero;
     private readonly Random _random = new();
+    private RuleOption _selectedRuleOption = null!;
 
     public ObservableCollection<string> Players { get; }
     public ObservableCollection<string> AIModes { get; }
     public ObservableCollection<TimeOption> TimeOptions { get; }
+    public ObservableCollection<RuleOption> RuleOptions { get; }
 
     public ObservableCollection<string> Themes { get; } =
         new ObservableCollection<string> { DefaultDarkThemeLabel, "Light" };
@@ -121,6 +126,19 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (_isSoundEnabled != value)
             {
                 _isSoundEnabled = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public RuleOption SelectedRuleOption
+    {
+        get => _selectedRuleOption;
+        set
+        {
+            if (value != null && _selectedRuleOption != value)
+            {
+                _selectedRuleOption = value;
                 OnPropertyChanged();
             }
         }
@@ -235,10 +253,17 @@ public partial class MainViewModel : INotifyPropertyChanged
             new TimeOption(45, "45 phút"),
             new TimeOption(60, "60 phút")
         };
+        RuleOptions = new ObservableCollection<RuleOption>
+        {
+            new RuleOption("Freestyle", () => new FreestyleRule(), 19, 19, "config_freestyle.toml"),
+            new RuleOption("Standard", () => new StandardRule(), 15, 15, "config_standard.toml"),
+            new RuleOption("Renju", () => new RenjuRule(), 15, 15, "config_renju_black.toml", "config_renju_white.toml")
+        };
 
         FirstPlayer = Players[0];
         IsAIEnabled = true;
         SelectedAIMode = "Khó";
+        SelectedRuleOption = RuleOptions[0];
 
         SelectedTheme = DefaultDarkThemeLabel;
         IsSoundEnabled = true;
@@ -251,6 +276,20 @@ public partial class MainViewModel : INotifyPropertyChanged
         SaveGameCommand = new RelayCommand(_ => SaveCurrentGame(), _ => Board != null);
         LoadGameCommand = new RelayCommand(_ => LoadSavedGame());
         SaveSettingsCommand = new RelayCommand(_ => SaveSettings());
+    }
+
+    private RuleOption ResolveRuleOption(string? ruleName)
+    {
+        if (!string.IsNullOrWhiteSpace(ruleName))
+        {
+            var match = RuleOptions.FirstOrDefault(r => string.Equals(r.Name, ruleName, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
+        return RuleOptions.First();
     }
 
     public void SetStatus(string message)

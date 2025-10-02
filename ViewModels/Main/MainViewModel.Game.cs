@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
 using Caro_game.Models;
@@ -9,10 +11,11 @@ public partial class MainViewModel
 {
     private void StartGame(object? parameter)
     {
-        bool isProfessionalMode = SelectedAIMode == "Chuyên nghiệp";
-        int baseSize = isProfessionalMode ? 19 : 35;
-        int rows = baseSize;
-        int cols = baseSize;
+        var ruleOption = SelectedRuleOption ?? RuleOptions.First();
+        int rows = ruleOption.Rows;
+        int cols = ruleOption.Columns;
+        bool allowExpansion = ruleOption.AllowExpansion;
+        bool isFreestyle = string.Equals(ruleOption.Name, "Freestyle", StringComparison.OrdinalIgnoreCase);
 
         bool playerStarts = FirstPlayer switch
         {
@@ -22,10 +25,34 @@ public partial class MainViewModel
             _ => true
         };
 
+        if (!IsAIEnabled)
+        {
+            playerStarts = true;
+        }
+
         string startingSymbol = "X";
         string humanSymbol = playerStarts ? startingSymbol : "O";
+        string aiSymbol = humanSymbol == "X" ? "O" : "X";
 
-        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol)
+        if (!IsAIEnabled)
+        {
+            humanSymbol = startingSymbol;
+            aiSymbol = "O";
+
+            if (isFreestyle)
+            {
+                rows = cols = 35;
+                allowExpansion = true;
+            }
+        }
+
+        bool aiPlaysBlack = IsAIEnabled ? aiSymbol == "X" : true;
+
+        ApplyRuleConfiguration(ruleOption, aiPlaysBlack);
+
+        var ruleInstance = ruleOption.CreateRule();
+
+        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol, ruleInstance, ruleOption.Name, allowExpansion)
         {
             IsAIEnabled = IsAIEnabled
         };
@@ -44,6 +71,35 @@ public partial class MainViewModel
         IsGamePaused = false;
         board.IsPaused = false;
         StatusMessage = "Đang chơi";
+    }
+
+    private void ApplyRuleConfiguration(RuleOption ruleOption, bool aiPlaysBlack)
+    {
+        try
+        {
+            var configFileName = ruleOption.ResolveConfigFile(aiPlaysBlack);
+            if (string.IsNullOrWhiteSpace(configFileName))
+            {
+                return;
+            }
+
+            var projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\..\\..\\"));
+            var aiDirectory = Path.Combine(projectRoot, "AI");
+            var sourcePath = Path.Combine(aiDirectory, configFileName);
+            var targetPath = Path.Combine(aiDirectory, "config.toml");
+
+            if (!File.Exists(sourcePath))
+            {
+                MessageBox.Show($"Không tìm thấy cấu hình cho luật {ruleOption.Name}.\n{sourcePath}", "Cảnh báo", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            File.Copy(sourcePath, targetPath, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Không thể áp dụng cấu hình luật {ruleOption.Name}.\nChi tiết: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void TogglePause()

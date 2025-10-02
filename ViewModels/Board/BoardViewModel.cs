@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using Caro_game;
 using Caro_game.Models;
+using Caro_game.Rules;
 
 namespace Caro_game.ViewModels;
 
@@ -46,6 +47,8 @@ public partial class BoardViewModel : BaseViewModel
     private readonly string _initialPlayer;
     private readonly string _humanSymbol;
     private readonly string _aiSymbol;
+    private readonly IRule _rule;
+    private readonly bool _allowBoardExpansion;
     private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromMilliseconds(600);
     private Cell? _lastMoveCell;
     private Cell? _lastHumanMoveCell;
@@ -119,6 +122,7 @@ public partial class BoardViewModel : BaseViewModel
     public string InitialPlayer => _initialPlayer;
     public string HumanSymbol => _humanSymbol;
     public string AISymbol => _aiSymbol;
+    public string RuleName { get; }
     public (int Row, int Col)? LastMovePosition => _lastMoveCell != null
         ? (_lastMoveCell.Row, _lastMoveCell.Col)
         : null;
@@ -131,7 +135,15 @@ public partial class BoardViewModel : BaseViewModel
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
+    public BoardViewModel(
+        int rows,
+        int columns,
+        string firstPlayer,
+        string aiMode = "Dễ",
+        string? humanSymbol = null,
+        IRule? rule = null,
+        string? ruleName = null,
+        bool allowBoardExpansion = false)
     {
         Rows = rows;
         Columns = columns;
@@ -143,6 +155,9 @@ public partial class BoardViewModel : BaseViewModel
             ? CurrentPlayer
             : (humanSymbol.Equals("O", StringComparison.OrdinalIgnoreCase) ? "O" : "X");
         _aiSymbol = _humanSymbol == "X" ? "O" : "X";
+        _rule = (rule ?? new FreestyleRule()).Clone();
+        RuleName = string.IsNullOrWhiteSpace(ruleName) ? "Freestyle" : ruleName!;
+        _allowBoardExpansion = allowBoardExpansion;
         Cells = new ObservableCollection<Cell>();
         _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
         _candidatePositions = new HashSet<(int, int)>();

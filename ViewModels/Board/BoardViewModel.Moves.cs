@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using Caro_game.Models;
+using Caro_game.Rules;
 using Caro_game.Views;
 
 namespace Caro_game.ViewModels;
@@ -45,16 +46,25 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
-        if (!(IsAIEnabled && AIMode == "Chuyên nghiệp"))
+        if (_allowBoardExpansion && !(IsAIEnabled && AIMode == "Chuyên nghiệp"))
         {
             ExpandBoardIfNeeded(originalRow, originalCol);
         }
 
         UpdateCandidatePositions(cell.Row, cell.Col);
 
-        if (CheckWin(cell.Row, cell.Col, movingPlayer))
+        var boardState = BuildBoardState();
+        int playerValue = GetPlayerValue(movingPlayer);
+
+        if (_rule.IsForbiddenMove(boardState, playerValue))
         {
-            HighlightWinningCells(cell.Row, cell.Col, movingPlayer);
+            HandleForbiddenMove(movingPlayer);
+            return;
+        }
+
+        if (_rule.IsWinning(boardState, playerValue))
+        {
+            HighlightWinningCells(boardState, cell.Row, cell.Col, playerValue);
 
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -412,71 +422,147 @@ public partial class BoardViewModel
         return count;
     }
 
-    private bool CheckWin(int row, int col, string player)
+    private void HighlightWinningCells(int[,] boardState, int row, int col, int playerValue)
     {
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
-
-        foreach (var dir in directions)
+        var winningLine = GetWinningLine(boardState, row, col, playerValue);
+        if (winningLine == null)
         {
-            int count = 1;
-            count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
-            count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
-
-            if (count >= 5)
-            {
-                return true;
-            }
+            return;
         }
 
-        return false;
-    }
-
-    private void HighlightWinningCells(int row, int col, string player)
-    {
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
-
-        foreach (var dir in directions)
+        foreach (var (lineRow, lineCol) in winningLine)
         {
-            var line = GetLine(row, col, dir[0], dir[1], player);
-            var opposite = GetLine(row, col, -dir[0], -dir[1], player);
-            line.AddRange(opposite);
-
-            if (_cellLookup.TryGetValue((row, col), out var center))
+            if (_cellLookup.TryGetValue((lineRow, lineCol), out var cellInLine))
             {
-                line.Add(center);
-            }
-
-            if (line.Count >= 5)
-            {
-                foreach (var cellInLine in line)
-                {
-                    cellInLine.IsWinningCell = true;
-                }
-                break;
+                cellInLine.IsWinningCell = true;
             }
         }
     }
 
-    private List<Cell> GetLine(int row, int col, int dRow, int dCol, string player)
+    private void HandleForbiddenMove(string offendingPlayer)
     {
-        var list = new List<Cell>();
-        int r = row + dRow;
-        int c = col + dCol;
-
-        while (r >= 0 && r < Rows && c >= 0 && c < Columns)
+        Application.Current.Dispatcher.Invoke(() =>
         {
-            if (_cellLookup.TryGetValue((r, c), out var cell) && cell.Value == player)
+            string winner = offendingPlayer == "X" ? "O" : "X";
+            var dialog = new WinDialog($"Nước đi của {offendingPlayer} bị cấm theo luật {RuleName}. {winner} thắng!")
             {
-                list.Add(cell);
-                r += dRow;
-                c += dCol;
+                Owner = Application.Current.MainWindow
+            };
+
+            dialog.ShowDialog();
+
+            GameEnded?.Invoke(this, new GameEndedEventArgs(winner, dialog.IsPlayAgain, true));
+
+            if (dialog.IsPlayAgain)
+            {
+                ResetBoard();
             }
             else
             {
-                break;
+                DisposeEngine();
+                Application.Current.Shutdown();
+            }
+        });
+    }
+
+    private int[,] BuildBoardState()
+    {
+        var boardState = new int[Rows, Columns];
+
+        foreach (var cell in _cellLookup.Values)
+        {
+            if (cell.Value == "X")
+            {
+                boardState[cell.Row, cell.Col] = 1;
+            }
+            else if (cell.Value == "O")
+            {
+                boardState[cell.Row, cell.Col] = 2;
             }
         }
 
-        return list;
+        return boardState;
     }
+
+    private static int GetPlayerValue(string player)
+        => player.Equals("X", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+
+    private List<(int Row, int Col)>? GetWinningLine(int[,] boardState, int row, int col, int playerValue)
+    {
+        var directions = new (int dx, int dy)[]
+        {
+            (0, 1),
+            (1, 0),
+            (1, 1),
+            (1, -1)
+        };
+
+        foreach (var (dx, dy) in directions)
+        {
+            var line = CollectLine(boardState, row, col, dx, dy, playerValue);
+            if (line.Count < 5)
+            {
+                continue;
+            }
+
+            if (_rule is StandardRule)
+            {
+                if (line.Count == 5 && EndsAreClosedForStandard(boardState, line, dx, dy, playerValue))
+                {
+                    return line;
+                }
+            }
+            else
+            {
+                return line;
+            }
+        }
+
+        return null;
+    }
+
+    private List<(int Row, int Col)> CollectLine(int[,] boardState, int row, int col, int dx, int dy, int playerValue)
+    {
+        var line = new List<(int, int)>();
+
+        int startRow = row;
+        int startCol = col;
+
+        while (IsWithinBoard(startRow - dx, startCol - dy) && boardState[startRow - dx, startCol - dy] == playerValue)
+        {
+            startRow -= dx;
+            startCol -= dy;
+        }
+
+        int currentRow = startRow;
+        int currentCol = startCol;
+
+        while (IsWithinBoard(currentRow, currentCol) && boardState[currentRow, currentCol] == playerValue)
+        {
+            line.Add((currentRow, currentCol));
+            currentRow += dx;
+            currentCol += dy;
+        }
+
+        return line;
+    }
+
+    private bool EndsAreClosedForStandard(int[,] boardState, List<(int Row, int Col)> line, int dx, int dy, int playerValue)
+    {
+        var first = line[0];
+        var last = line[^1];
+
+        int beforeRow = first.Row - dx;
+        int beforeCol = first.Col - dy;
+        int afterRow = last.Row + dx;
+        int afterCol = last.Col + dy;
+
+        bool end1 = !IsWithinBoard(beforeRow, beforeCol) || boardState[beforeRow, beforeCol] != playerValue;
+        bool end2 = !IsWithinBoard(afterRow, afterCol) || boardState[afterRow, afterCol] != playerValue;
+
+        return end1 && end2;
+    }
+
+    private bool IsWithinBoard(int row, int col)
+        => row >= 0 && row < Rows && col >= 0 && col < Columns;
 }

@@ -10,6 +10,7 @@ namespace Caro_game.Models
         public string? FirstPlayer { get; set; }
         public string? CurrentPlayer { get; set; }
         public string? HumanSymbol { get; set; }
+        public string? Rule { get; set; }
         public bool IsAIEnabled { get; set; }
         public string? AIMode { get; set; }
         public int TimeLimitMinutes { get; set; }

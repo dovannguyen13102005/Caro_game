@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System;
 
 namespace Caro_game.Views
 {

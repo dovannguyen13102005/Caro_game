@@ -12,8 +12,13 @@ public partial class BoardViewModel
     {
         DisposeEngine();
 
-        var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        var enginePath = Path.Combine(baseDirectory, "AI", "pbrain-rapfi-windows-avx2.exe");
+        // 🔹 Xác định thư mục gốc project (từ bin quay ngược ra)
+        var projectRoot = Path.GetFullPath(
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\")
+        );
+
+        // 🔹 Đường dẫn tới AI ngoài repo
+        var enginePath = Path.Combine(projectRoot, "AI", "pbrain-rapfi_avx2.exe");
 
         if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
         {
@@ -41,7 +46,7 @@ public partial class BoardViewModel
                 return;
             }
 
-            // ✅ Fix: Kiểm tra Cells trước khi gọi All
+            // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi luôn
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {
                 var aiMove = _engine.Begin();
@@ -53,6 +58,7 @@ public partial class BoardViewModel
             NotifyProfessionalModeUnavailable($"Không thể khởi động AI Chuyên nghiệp.\nChi tiết: {ex}");
         }
     }
+
 
 
     private void NotifyProfessionalModeUnavailable(string message)

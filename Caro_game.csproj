@@ -1,15 +1,22 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Resources\" />
+    <Compile Update="Views\WinDialog.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="robocopy &quot;$(ProjectDir)..\AI&quot; &quot;$(TargetDir)AI&quot; /E /NFL /NDL /NJH /NJS /nc /ns /np || exit 0" />
+  </Target>
+
 
 </Project>

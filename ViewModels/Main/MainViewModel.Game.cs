@@ -198,7 +198,22 @@ public partial class MainViewModel
 
         if (e.HasWinner)
         {
-            StatusMessage = $"Người chơi {e.Winner} thắng!";
+            var board = Board;
+            if (board != null && board.IsAIEnabled)
+            {
+                bool aiWon = string.Equals(e.Winner, board.AISymbol, StringComparison.OrdinalIgnoreCase);
+                StatusMessage = aiWon ? "Máy thắng!" : "Bạn thắng!";
+            }
+            else
+            {
+                StatusMessage = string.IsNullOrWhiteSpace(e.Winner)
+                    ? "Đã có người thắng!"
+                    : $"Người chơi {e.Winner} thắng!";
+            }
+        }
+        else
+        {
+            StatusMessage = "Hòa cờ!";
         }
 
         if (e.PlayAgain)

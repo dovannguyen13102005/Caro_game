@@ -51,6 +51,21 @@ public partial class BoardViewModel
                 _engine.SetRule(_rule.EngineKeyword);
             }
 
+            var configFile = GetEngineConfigFile();
+            if (!string.IsNullOrWhiteSpace(configFile))
+            {
+                var configFullPath = Path.Combine(Path.GetDirectoryName(enginePath) ?? projectRoot, configFile);
+
+                if (File.Exists(configFullPath))
+                {
+                    _engine.SetConfig(configFile);
+                }
+                else
+                {
+                    LogEngineSetupIssue($"Không tìm thấy tệp cấu hình AI: {configFullPath}");
+                }
+            }
+
             // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi luôn
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {
@@ -81,5 +96,29 @@ public partial class BoardViewModel
     {
         _engine?.Dispose();
         _engine = null;
+    }
+
+    private static void LogEngineSetupIssue(string message)
+    {
+        try
+        {
+            var logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "engine_log.txt");
+            File.AppendAllText(logFile, $"{DateTime.Now:HH:mm:ss} [SetupWarning] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+            // ignore logging failures
+        }
+    }
+
+    private string? GetEngineConfigFile()
+    {
+        return RuleType switch
+        {
+            GameRuleType.Freestyle => "config_freestyle.toml",
+            GameRuleType.Standard => "config_standard.toml",
+            GameRuleType.Renju => _aiSymbol == "X" ? "config_renju_black.toml" : "config_renju_white.toml",
+            _ => null
+        };
     }
 }

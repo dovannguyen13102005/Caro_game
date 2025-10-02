@@ -19,6 +19,7 @@ namespace Caro_game
             var psi = new ProcessStartInfo
             {
                 FileName = enginePath,
+                WorkingDirectory = Path.GetDirectoryName(enginePath) ?? AppDomain.CurrentDomain.BaseDirectory,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -118,6 +119,16 @@ namespace Caro_game
             }
 
             Send($"INFO rule {ruleKeyword}");
+        }
+
+        public void SetConfig(string configFile)
+        {
+            if (string.IsNullOrWhiteSpace(configFile))
+            {
+                return;
+            }
+
+            Send($"INFO config {configFile}");
         }
 
         public void End()

@@ -51,6 +51,7 @@ public partial class BoardViewModel : BaseViewModel
     private Cell? _lastMoveCell;
     private Cell? _lastHumanMoveCell;
     private string? _lastMovePlayer;
+    private MoveSnapshot? _pendingProfessionalValidation;
 
     private string _currentPlayer;
     public string CurrentPlayer
@@ -172,5 +173,33 @@ public partial class BoardViewModel : BaseViewModel
         {
             TryInitializeProfessionalEngine();
         }
+    }
+
+    private sealed class MoveSnapshot
+    {
+        public MoveSnapshot(Cell cell,
+            string? previousValue,
+            bool previousIsLastMove,
+            Cell? previousLastMoveCell,
+            string? previousLastMovePlayer,
+            Cell? previousLastHumanMoveCell,
+            string previousCurrentPlayer)
+        {
+            Cell = cell;
+            PreviousValue = previousValue;
+            PreviousIsLastMove = previousIsLastMove;
+            PreviousLastMoveCell = previousLastMoveCell;
+            PreviousLastMovePlayer = previousLastMovePlayer;
+            PreviousLastHumanMoveCell = previousLastHumanMoveCell;
+            PreviousCurrentPlayer = previousCurrentPlayer;
+        }
+
+        public Cell Cell { get; }
+        public string? PreviousValue { get; }
+        public bool PreviousIsLastMove { get; }
+        public Cell? PreviousLastMoveCell { get; }
+        public string? PreviousLastMovePlayer { get; }
+        public Cell? PreviousLastHumanMoveCell { get; }
+        public string PreviousCurrentPlayer { get; }
     }
 }

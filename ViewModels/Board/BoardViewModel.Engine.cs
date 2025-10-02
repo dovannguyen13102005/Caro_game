@@ -65,7 +65,14 @@ public partial class BoardViewModel
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {
                 var aiMove = _engine.Begin();
-                PlaceAiIfValid(aiMove);
+                if (aiMove.Status == EngineClient.EngineMoveStatus.Move)
+                {
+                    PlaceAiIfValid(aiMove);
+                }
+                else
+                {
+                    HandleProfessionalEngineFailure(aiMove);
+                }
             }
         }
         catch (Exception ex)
@@ -98,6 +105,79 @@ public partial class BoardViewModel
         };
 
         return fileName == null ? null : Path.Combine(aiDirectory, fileName);
+    }
+
+    private void HandleProfessionalViolation(EngineClient.EngineMoveResult result)
+    {
+        var snapshot = _pendingProfessionalValidation;
+        _pendingProfessionalValidation = null;
+
+        Application.Current.Dispatcher?.Invoke(() =>
+        {
+            RestoreSnapshot(snapshot);
+
+            string displayMessage = !string.IsNullOrWhiteSpace(result.Message)
+                ? result.Message
+                : (result.Status == EngineClient.EngineMoveStatus.Forbidden
+                    ? "Nước đi này bị cấm theo luật chuẩn quốc tế."
+                    : "Nước đi không hợp lệ theo luật chuẩn quốc tế.");
+
+            MessageBox.Show(displayMessage, "Chuyên nghiệp", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            if (Application.Current.MainWindow?.DataContext is MainViewModel vm)
+            {
+                vm.SetStatus("Nước đi bị từ chối, hãy chọn nước khác.");
+            }
+        });
+    }
+
+    private void HandleProfessionalEngineFailure(EngineClient.EngineMoveResult result)
+    {
+        var snapshot = _pendingProfessionalValidation;
+        _pendingProfessionalValidation = null;
+
+        string detail = !string.IsNullOrWhiteSpace(result.Message)
+            ? result.Message
+            : (!string.IsNullOrWhiteSpace(result.RawResponse)
+                ? result.RawResponse
+                : "Engine không phản hồi.");
+
+        Application.Current.Dispatcher?.Invoke(() => RestoreSnapshot(snapshot));
+
+        NotifyProfessionalModeUnavailable(
+            "Engine chuyên nghiệp đã bị vô hiệu hóa do lỗi.\n" + detail);
+
+        Application.Current.Dispatcher?.Invoke(() =>
+        {
+            if (Application.Current.MainWindow?.DataContext is MainViewModel vm)
+            {
+                vm.SetStatus("AI chuyên nghiệp đã tắt do lỗi.");
+            }
+        });
+    }
+
+    private void RestoreSnapshot(MoveSnapshot? snapshot)
+    {
+        if (snapshot == null)
+        {
+            return;
+        }
+
+        snapshot.Cell.Value = snapshot.PreviousValue ?? string.Empty;
+        snapshot.Cell.IsLastMove = snapshot.PreviousIsLastMove;
+        snapshot.Cell.IsWinningCell = false;
+
+        if (snapshot.PreviousLastMoveCell != null)
+        {
+            snapshot.PreviousLastMoveCell.IsLastMove = true;
+        }
+
+        _lastMoveCell = snapshot.PreviousLastMoveCell;
+        _lastMovePlayer = snapshot.PreviousLastMovePlayer;
+        _lastHumanMoveCell = snapshot.PreviousLastHumanMoveCell;
+        CurrentPlayer = snapshot.PreviousCurrentPlayer;
+
+        RebuildCandidatePositions();
     }
 
     public void DisposeEngine()

@@ -1,12 +1,112 @@
 using System;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace Caro_game
 {
     public class EngineClient : IDisposable
     {
+        public enum EngineMoveStatus
+        {
+            Move,
+            Forbidden,
+            Illegal,
+            InvalidResponse,
+            NoResponse,
+            Error
+        }
+
+        public sealed class EngineMoveResult
+        {
+            public EngineMoveResult(EngineMoveStatus status, int? x, int? y, string rawResponse, string? message)
+            {
+                Status = status;
+                X = x;
+                Y = y;
+                RawResponse = rawResponse;
+                Message = message;
+            }
+
+            public EngineMoveStatus Status { get; }
+
+            public int? X { get; }
+
+            public int? Y { get; }
+
+            public string RawResponse { get; }
+
+            public string? Message { get; }
+
+            public bool HasCoordinates => X.HasValue && Y.HasValue;
+
+            internal static EngineMoveResult FromResponse(string? responseLine, string? message)
+            {
+                if (string.IsNullOrWhiteSpace(responseLine))
+                {
+                    return new EngineMoveResult(EngineMoveStatus.NoResponse, null, null, string.Empty, message);
+                }
+
+                var trimmed = responseLine.Trim();
+
+                if (StartsWith(trimmed, "FORBID"))
+                {
+                    var coords = ParseCoordinates(trimmed, "FORBID");
+                    return new EngineMoveResult(EngineMoveStatus.Forbidden, coords?.x, coords?.y, trimmed, message);
+                }
+
+                if (StartsWith(trimmed, "ILLEGAL"))
+                {
+                    var coords = ParseCoordinates(trimmed, "ILLEGAL");
+                    return new EngineMoveResult(EngineMoveStatus.Illegal, coords?.x, coords?.y, trimmed, message);
+                }
+
+                if (StartsWith(trimmed, "ERROR"))
+                {
+                    return new EngineMoveResult(EngineMoveStatus.Error, null, null, trimmed, message);
+                }
+
+                if (TryParseCoordinates(trimmed, out var parsedX, out var parsedY))
+                {
+                    return new EngineMoveResult(EngineMoveStatus.Move, parsedX, parsedY, trimmed, message);
+                }
+
+                return new EngineMoveResult(EngineMoveStatus.InvalidResponse, null, null, trimmed, message);
+            }
+
+            private static bool StartsWith(string value, string prefix)
+                => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+
+            private static (int x, int y)? ParseCoordinates(string line, string prefix)
+            {
+                string remaining = line.Substring(prefix.Length).Trim();
+                if (TryParseCoordinates(remaining, out var x, out var y))
+                {
+                    return (x, y);
+                }
+
+                return null;
+            }
+
+            private static bool TryParseCoordinates(string value, out int x, out int y)
+            {
+                x = 0;
+                y = 0;
+
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    return false;
+                }
+
+                var parts = value.Split(',');
+                if (parts.Length != 2)
+                {
+                    return false;
+                }
+
+                return int.TryParse(parts[0], out x) && int.TryParse(parts[1], out y);
+            }
+        }
+
         private Process? _process;
         private StreamWriter? _input;
         private StreamReader? _output;
@@ -65,20 +165,24 @@ namespace Caro_game
             _input.Flush();
         }
 
-        private string ReceiveLine()
+        private (string? Response, string? Message) ReceiveNonMessageLine()
         {
-            if (_output == null) return string.Empty;
+            if (_output == null) return (string.Empty, null);
 
             string? line;
+            string? lastMessage = null;
             while ((line = _output.ReadLine()) != null)
             {
-                if (line.StartsWith("MESSAGE"))
+                if (line.StartsWith("MESSAGE", StringComparison.OrdinalIgnoreCase))
                 {
                     Log("[Engine MESSAGE] " + line);
+                    lastMessage = line.Length > 7
+                        ? line.Substring(7).Trim()
+                        : string.Empty;
                     continue;
                 }
                 Log("[Recv] " + line);
-                return line;
+                return (line, lastMessage);
             }
 
             if (_process != null && _process.HasExited)
@@ -86,35 +190,37 @@ namespace Caro_game
                 Log("[Engine] process exited unexpectedly!");
             }
 
-            return string.Empty;
+            return (string.Empty, lastMessage);
         }
 
         public void StartSquare(int size)
         {
             Send($"START {size}");
-            var resp = ReceiveLine(); // nuốt OK nếu có
-            if (!string.IsNullOrEmpty(resp))
-                Log("[StartSquare resp] " + resp);
+            var resp = ReceiveNonMessageLine(); // nuốt OK nếu có
+            if (!string.IsNullOrEmpty(resp.Response))
+                Log("[StartSquare resp] " + resp.Response);
         }
 
         public bool StartRect(int width, int height)
         {
             Send($"RECTSTART {width},{height}");
-            var resp = ReceiveLine();
-            return !string.IsNullOrEmpty(resp) &&
-                   resp.StartsWith("OK", StringComparison.OrdinalIgnoreCase);
+            var resp = ReceiveNonMessageLine();
+            return !string.IsNullOrEmpty(resp.Response) &&
+                   resp.Response.StartsWith("OK", StringComparison.OrdinalIgnoreCase);
         }
 
-        public string Begin()
+        public EngineMoveResult Begin()
         {
             Send("BEGIN");
-            return ReceiveLine(); // trả về "x,y"
+            var (response, message) = ReceiveNonMessageLine();
+            return EngineMoveResult.FromResponse(response, message);
         }
 
-        public string Turn(int x, int y)
+        public EngineMoveResult Turn(int x, int y)
         {
             Send($"TURN {x},{y}");
-            return ReceiveLine(); // trả về "x,y"
+            var (response, message) = ReceiveNonMessageLine();
+            return EngineMoveResult.FromResponse(response, message);
         }
 
         public void End()

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using Caro_game;
 using Caro_game.Models;
 using Caro_game.Views;
 
@@ -39,6 +40,23 @@ public partial class BoardViewModel
                     "Renju", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             return;
+        }
+
+        bool requiresProfessionalValidation = !isAiMove && IsAIEnabled && AIMode == "Chuyên nghiệp" && _engine != null;
+        if (requiresProfessionalValidation)
+        {
+            _pendingProfessionalValidation = new MoveSnapshot(
+                cell,
+                cell.Value,
+                cell.IsLastMove,
+                _lastMoveCell,
+                _lastMovePlayer,
+                _lastHumanMoveCell,
+                movingPlayer);
+        }
+        else if (!isAiMove)
+        {
+            _pendingProfessionalValidation = null;
         }
 
         if (_lastMoveCell != null)
@@ -132,26 +150,38 @@ public partial class BoardViewModel
             {
                 try
                 {
-                    string aiMove = lastMovePlayer == _humanSymbol && lastMoveCell != null
+                    var engineResult = lastMovePlayer == _humanSymbol && lastMoveCell != null
                         ? _engine!.Turn(lastMoveCell.Col, lastMoveCell.Row)
                         : _engine!.Begin();
 
-                    PlaceAiIfValid(aiMove);
-
-                    Application.Current.Dispatcher.Invoke(() =>
+                    switch (engineResult.Status)
                     {
-                        var mainVm = Application.Current.MainWindow?.DataContext as MainViewModel;
-                        mainVm?.SetStatus("Đang chơi");
-                    });
+                        case EngineClient.EngineMoveStatus.Move:
+                            _pendingProfessionalValidation = null;
+                            PlaceAiIfValid(engineResult);
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                var mainVm = Application.Current.MainWindow?.DataContext as MainViewModel;
+                                mainVm?.SetStatus("Đang chơi");
+                            });
+                            break;
+                        case EngineClient.EngineMoveStatus.Forbidden:
+                        case EngineClient.EngineMoveStatus.Illegal:
+                            HandleProfessionalViolation(engineResult);
+                            break;
+                        default:
+                            HandleProfessionalEngineFailure(engineResult);
+                            break;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        MessageBox.Show($"AI engine error: {ex.Message}", "Error",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    });
-                    DisposeEngine();
+                    HandleProfessionalEngineFailure(new EngineClient.EngineMoveResult(
+                        EngineClient.EngineMoveStatus.Error,
+                        null,
+                        null,
+                        ex.Message,
+                        ex.Message));
                 }
             });
         }
@@ -327,18 +357,15 @@ public partial class BoardViewModel
         }
     }
 
-    private void PlaceAiIfValid(string aiMove)
+    private void PlaceAiIfValid(EngineClient.EngineMoveResult result)
     {
-        if (string.IsNullOrWhiteSpace(aiMove))
+        if (result == null || result.Status != EngineClient.EngineMoveStatus.Move || !result.HasCoordinates)
         {
             return;
         }
 
-        var parts = aiMove.Split(',');
-        if (parts.Length == 2 &&
-            int.TryParse(parts[0], out int aiX) &&
-            int.TryParse(parts[1], out int aiY) &&
-            _cellLookup.TryGetValue((aiY, aiX), out var aiCell))
+        if (result.Y.HasValue && result.X.HasValue &&
+            _cellLookup.TryGetValue((result.Y.Value, result.X.Value), out var aiCell))
         {
             Application.Current.Dispatcher.Invoke(() => ExecuteMove(aiCell, true));
         }
@@ -380,6 +407,22 @@ public partial class BoardViewModel
                 if (string.IsNullOrEmpty(neighbor.Value))
                 {
                     _candidatePositions.Add((neighbor.Row, neighbor.Col));
+                }
+            }
+        }
+    }
+
+    private void RebuildCandidatePositions()
+    {
+        lock (_candidateLock)
+        {
+            _candidatePositions.Clear();
+
+            foreach (var cell in Cells)
+            {
+                if (string.IsNullOrEmpty(cell.Value) && HasNeighbor(cell, 2))
+                {
+                    _candidatePositions.Add((cell.Row, cell.Col));
                 }
             }
         }

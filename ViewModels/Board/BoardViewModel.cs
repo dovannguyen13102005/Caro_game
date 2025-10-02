@@ -43,12 +43,14 @@ public partial class BoardViewModel : BaseViewModel
 
     private readonly Dictionary<(int Row, int Col), Cell> _cellLookup;
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
+    private readonly List<MoveState> _moveHistory = new();
     private readonly object _candidateLock = new();
     private readonly string _initialPlayer;
     private readonly string _humanSymbol;
     private readonly string _aiSymbol;
     private readonly IRule _rule;
     private readonly bool _allowBoardExpansion;
+    private bool _isRestoringState;
     private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromSeconds(2);
     private Cell? _lastMoveCell;
     private Cell? _lastHumanMoveCell;
@@ -130,8 +132,10 @@ public partial class BoardViewModel : BaseViewModel
         ? (_lastHumanMoveCell.Row, _lastHumanMoveCell.Col)
         : null;
     public string? LastMovePlayer => _lastMovePlayer;
+    public IReadOnlyList<MoveState> MoveHistory => _moveHistory;
 
     private EngineClient? _engine;
+    private bool _pendingResumeAfterLoad;
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
@@ -143,7 +147,8 @@ public partial class BoardViewModel : BaseViewModel
         string? humanSymbol = null,
         IRule? rule = null,
         string? ruleName = null,
-        bool allowBoardExpansion = false)
+        bool allowBoardExpansion = false,
+        bool isRestoringState = false)
     {
         Rows = rows;
         Columns = columns;
@@ -158,6 +163,7 @@ public partial class BoardViewModel : BaseViewModel
         _rule = (rule ?? new FreestyleRule()).Clone();
         RuleName = string.IsNullOrWhiteSpace(ruleName) ? "Freestyle" : ruleName!;
         _allowBoardExpansion = allowBoardExpansion;
+        _isRestoringState = isRestoringState;
         Cells = new ObservableCollection<Cell>();
         _cellLookup = new Dictionary<(int, int), Cell>(rows * columns);
         _candidatePositions = new HashSet<(int, int)>();

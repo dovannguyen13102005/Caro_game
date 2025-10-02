@@ -46,7 +46,7 @@ public partial class BoardViewModel
                 return;
             }
 
-            // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi luôn
+            // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi 
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {
                 var aiMove = _engine.Begin();
@@ -71,7 +71,7 @@ public partial class BoardViewModel
             MessageBox.Show(message, "Caro", MessageBoxButton.OK, MessageBoxImage.Warning);
         });
     }
-
+    
     public void DisposeEngine()
     {
         _engine?.Dispose();

@@ -19,13 +19,13 @@ public partial class BoardViewModel
     {
         if (!isAiMove && (IsPaused || !string.IsNullOrEmpty(cell.Value)))
         {
-            AudioService.Instance.PlayErrorSound();
+            //AudioService.Instance.PlayErrorSound();
             return;
         }
 
         if (!isAiMove && IsAIEnabled && CurrentPlayer != _humanSymbol)
         {
-            AudioService.Instance.PlayErrorSound();
+            //AudioService.Instance.PlayErrorSound();
             return;
         }
 

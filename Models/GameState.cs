@@ -13,11 +13,14 @@ namespace Caro_game.Models
         public string? Rule { get; set; }
         public bool IsAIEnabled { get; set; }
         public string? AIMode { get; set; }
+        public string? FirstPlayerSelection { get; set; }
         public int TimeLimitMinutes { get; set; }
+        public string? TimeOptionDisplay { get; set; }
         public int? RemainingSeconds { get; set; }
         public bool IsPaused { get; set; }
         public DateTime SavedAt { get; set; }
         public List<CellState> Cells { get; set; } = new();
+        public List<MoveState> Moves { get; set; } = new();
         public int? LastMoveRow { get; set; }
         public int? LastMoveCol { get; set; }
         public string? LastMovePlayer { get; set; }

@@ -20,6 +20,8 @@ public partial class BoardViewModel
             cell.IsLastMove = false;
         }
 
+        _moveHistory.Clear();
+
         if (state.Cells != null)
         {
             foreach (var cellState in state.Cells)
@@ -29,6 +31,20 @@ public partial class BoardViewModel
                     cell.Value = cellState.Value ?? string.Empty;
                     cell.IsWinningCell = cellState.IsWinningCell;
                 }
+            }
+        }
+
+        if (state.Moves != null && state.Moves.Count > 0)
+        {
+            foreach (var move in state.Moves)
+            {
+                var normalizedPlayer = string.Equals(move.Player, "O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
+                _moveHistory.Add(new MoveState
+                {
+                    Row = move.Row,
+                    Col = move.Col,
+                    Player = normalizedPlayer
+                });
             }
         }
 

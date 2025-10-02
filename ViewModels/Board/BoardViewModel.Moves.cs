@@ -45,6 +45,12 @@ public partial class BoardViewModel
         }
 
         cell.Value = movingPlayer;
+        _moveHistory.Add(new MoveState
+        {
+            Row = cell.Row,
+            Col = cell.Col,
+            Player = movingPlayer
+        });
 
         if (_allowBoardExpansion && !(IsAIEnabled && AIMode == "Chuyên nghiệp"))
         {
@@ -178,6 +184,7 @@ public partial class BoardViewModel
         _lastMoveCell = null;
         _lastHumanMoveCell = null;
         _lastMovePlayer = null;
+        _moveHistory.Clear();
 
         CurrentPlayer = _initialPlayer;
         IsPaused = false;

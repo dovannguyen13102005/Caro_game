@@ -47,7 +47,10 @@ public partial class BoardViewModel
             }
 
             // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi luôn
-            if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
+            if (!_skipProfessionalAutoMoveDuringInit &&
+                Cells != null &&
+                Cells.All(c => string.IsNullOrEmpty(c.Value)) &&
+                CurrentPlayer == _aiSymbol)
             {
                 var aiMove = _engine.Begin();
                 PlaceAiIfValid(aiMove);
@@ -58,6 +61,71 @@ public partial class BoardViewModel
             NotifyProfessionalModeUnavailable($"Không thể khởi động AI Chuyên nghiệp.\nChi tiết: {ex}");
         }
     }
+
+
+    public bool RestoreProfessionalEngineState()
+    {
+        _skipProfessionalAutoMoveDuringInit = false;
+
+        if (AIMode != "Chuyên nghiệp" || _engine == null)
+        {
+            return false;
+        }
+
+        if (_moveHistory.Count == 0)
+        {
+            if (Cells.Any(c => !string.IsNullOrEmpty(c.Value)))
+            {
+                Application.Current.Dispatcher?.Invoke(() =>
+                {
+                    MessageBox.Show(
+                        "Bản lưu không chứa lịch sử nước đi nên không thể khôi phục AI Chuyên nghiệp.\n" +
+                        "AI sẽ chuyển sang cấp độ Khó để tiếp tục ván đấu.",
+                        "Chuyên nghiệp",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                });
+
+                AIMode = "Khó";
+            }
+
+            return false;
+        }
+
+        try
+        {
+            var stones = _moveHistory
+                .Select(m => (X: m.Col, Y: m.Row, Player: NormalizePlayer(m.Player)))
+                .ToList();
+
+            var response = _engine.SyncBoard(stones);
+            bool aiTurn = IsAIEnabled && !IsPaused && CurrentPlayer == _aiSymbol;
+
+            if (aiTurn && !string.IsNullOrWhiteSpace(response))
+            {
+                PlaceAiIfValid(response);
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Application.Current.Dispatcher?.Invoke(() =>
+            {
+                MessageBox.Show(
+                    $"Không thể khôi phục trạng thái AI Chuyên nghiệp.\nChi tiết: {ex.Message}",
+                    "Chuyên nghiệp",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            });
+
+            DisposeEngine();
+        }
+
+        return false;
+    }
+
+    private static int NormalizePlayer(string? player)
+        => string.Equals(player, "O", StringComparison.OrdinalIgnoreCase) ? 2 : 1;
 
 
 

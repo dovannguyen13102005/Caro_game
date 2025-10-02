@@ -37,8 +37,12 @@ public partial class MainViewModel
                 Rule = Board.RuleName,
                 IsAIEnabled = Board.IsAIEnabled,
                 AIMode = Board.AIMode,
-                TimeLimitMinutes = SelectedTimeOption.Minutes,
-                RemainingSeconds = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTime.TotalSeconds) : null,
+                FirstPlayerSelection = FirstPlayer,
+                TimeLimitMinutes = SelectedTimeOption?.Minutes ?? 0,
+                TimeOptionDisplay = SelectedTimeOption?.Display,
+                RemainingSeconds = SelectedTimeOption != null && SelectedTimeOption.Minutes > 0
+                    ? (int?)Math.Ceiling(RemainingTime.TotalSeconds)
+                    : null,
                 IsPaused = IsGamePaused,
                 SavedAt = DateTime.Now,
                 Cells = Board.Cells.Select(c => new CellState
@@ -47,7 +51,15 @@ public partial class MainViewModel
                     Col = c.Col,
                     Value = c.Value,
                     IsWinningCell = c.IsWinningCell
-                }).ToList()
+                }).ToList(),
+                Moves = Board.MoveHistory
+                    .Select(m => new MoveState
+                    {
+                        Row = m.Row,
+                        Col = m.Col,
+                        Player = m.Player
+                    })
+                    .ToList()
             };
 
             var lastMove = Board.LastMovePosition;
@@ -97,7 +109,17 @@ public partial class MainViewModel
 
                 ApplyGameState(state);
 
-                MessageBox.Show("Đã tải ván đấu thành công!", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+                var modeDescription = state.IsAIEnabled ? "Chơi với máy" : "2 người";
+                var levelDescription = state.IsAIEnabled
+                    ? (string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!)
+                    : "Không áp dụng";
+                var timeDescription = !string.IsNullOrWhiteSpace(state.TimeOptionDisplay)
+                    ? state.TimeOptionDisplay!
+                    : (state.TimeLimitMinutes > 0 ? $"{state.TimeLimitMinutes} phút" : "Không giới hạn");
+
+                MessageBox.Show(
+                    $"Đã tải ván đấu thành công!\nChế độ: {modeDescription}\nCấp độ: {levelDescription}\nThời gian: {timeDescription}",
+                    "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -124,31 +146,20 @@ public partial class MainViewModel
         var targetMode = string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!;
         SelectedAIMode = targetMode;
 
-        bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
-        var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
-
         var ruleOption = ResolveRuleOption(state.Rule);
         SelectedRuleOption = ruleOption;
         var ruleInstance = ruleOption.CreateRule();
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", targetMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion, skipProfessionalAutoMoveDuringInit: true)
         {
-            IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
+            IsAIEnabled = state.IsAIEnabled
         };
 
         board.LoadFromState(state);
 
         Board = board;
 
-        if (professionalModeRestored)
-        {
-            SelectedAIMode = "Khó";
-            IsAIEnabled = false;
-            MessageBox.Show("Không thể tiếp tục cấp độ AI Chuyên nghiệp cho ván đã lưu. Cấp độ đã được chuyển về Khó.",
-                "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-
-        var option = EnsureTimeOption(state.TimeLimitMinutes);
+        var option = EnsureTimeOption(state.TimeLimitMinutes, state.TimeOptionDisplay);
         SelectedTimeOption = option;
 
         _configuredDuration = state.TimeLimitMinutes > 0
@@ -185,14 +196,42 @@ public partial class MainViewModel
             _gameTimer.Start();
         }
 
+        if (!string.IsNullOrWhiteSpace(state.FirstPlayerSelection))
+        {
+            FirstPlayer = state.FirstPlayerSelection!;
+        }
+        else
+        {
+            FirstPlayer = humanSymbol == "O" ? "Máy đi trước" : "Bạn đi trước";
+        }
+
         StatusMessage = hasWinner
             ? "Ván đấu đã kết thúc."
             : IsGamePaused ? "Đang tạm dừng" : "Đang chơi";
 
+        bool aiStarted = false;
+        if (!hasWinner && Board != null && Board.IsAIEnabled)
+        {
+            if (Board.AIMode == "Chuyên nghiệp")
+            {
+                aiStarted = Board.RestoreProfessionalEngineState();
+            }
+
+            if (!aiStarted)
+            {
+                Board.TryStartAITurn();
+            }
+        }
+
+        if (Board != null)
+        {
+            SelectedAIMode = Board.AIMode;
+        }
+
         CommandManager.InvalidateRequerySuggested();
     }
 
-    private TimeOption EnsureTimeOption(int minutes)
+    private TimeOption EnsureTimeOption(int minutes, string? display)
     {
         var existing = TimeOptions.FirstOrDefault(t => t.Minutes == minutes);
         if (existing != null)
@@ -200,8 +239,17 @@ public partial class MainViewModel
             return existing;
         }
 
-        var label = minutes > 0 ? $"{minutes} phút" : "Không giới hạn";
-        var option = new TimeOption(minutes, label + " (tải)");
+        string label;
+        if (!string.IsNullOrWhiteSpace(display))
+        {
+            label = display!;
+        }
+        else
+        {
+            label = minutes > 0 ? $"{minutes} phút" : "Không giới hạn";
+        }
+
+        var option = new TimeOption(minutes, label);
         TimeOptions.Add(option);
         return option;
     }

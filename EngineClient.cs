@@ -83,20 +83,28 @@ namespace Caro_game
             return string.Empty;
         }
 
-        public void StartSquare(int size)
+        public string StartSquare(int size)
         {
             Send($"START {size}");
-            var resp = ReceiveLine(); // nuốt OK nếu có
+            var resp = ReceiveLine();
             if (!string.IsNullOrEmpty(resp))
+            {
                 Log("[StartSquare resp] " + resp);
+            }
+
+            return resp;
         }
 
-        public bool StartRect(int width, int height)
+        public string StartRect(int width, int height)
         {
             Send($"RECTSTART {width},{height}");
             var resp = ReceiveLine();
-            return !string.IsNullOrEmpty(resp) &&
-                   resp.StartsWith("OK", StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrEmpty(resp))
+            {
+                Log("[StartRect resp] " + resp);
+            }
+
+            return resp;
         }
 
         public string Begin()
@@ -128,7 +136,11 @@ namespace Caro_game
                 return;
             }
 
-            Send($"INFO config {configFile}");
+            var payload = configFile.Contains(' ')
+                ? $"\"{configFile}\""
+                : configFile;
+
+            Send($"INFO config {payload}");
         }
 
         public void End()

@@ -19,7 +19,8 @@ public partial class BoardViewModel
         );
 
         // 🔹 Đường dẫn tới AI ngoài repo
-        var enginePath = Path.Combine(projectRoot, "AI", "pbrain-rapfi_avx2.exe");
+        var aiFolder = Path.Combine(projectRoot, "AI");
+        var enginePath = Path.Combine(aiFolder, "pbrain-rapfi_avx2.exe");
 
         if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))
         {
@@ -32,19 +33,19 @@ public partial class BoardViewModel
         {
             _engine = new EngineClient(enginePath);
 
-            if (Rows == Columns)
-            {
-                _engine.StartSquare(Rows);
-            }
-            else if (!_engine.StartRect(Columns, Rows))
-            {
-                MessageBox.Show("AI không hỗ trợ kích thước bàn chữ nhật. Hãy chọn bàn vuông.",
-                    "Chuyên nghiệp", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var startResponse = Rows == Columns
+                ? _engine.StartSquare(Rows)
+                : _engine.StartRect(Columns, Rows);
 
-                DisposeEngine();
-                IsAIEnabled = false;
-                AIMode = "Khó";
+            if (ResponseIndicatesError(startResponse))
+            {
+                NotifyProfessionalModeUnavailable($"AI từ chối khởi động với kích thước bàn hiện tại.\nPhản hồi: {startResponse}");
                 return;
+            }
+
+            if (!string.IsNullOrEmpty(startResponse) && !startResponse.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
+            {
+                LogEngineSetupIssue($"Unexpected start response: {startResponse}");
             }
 
             if (!string.IsNullOrWhiteSpace(_rule.EngineKeyword))
@@ -55,11 +56,11 @@ public partial class BoardViewModel
             var configFile = GetEngineConfigFile();
             if (!string.IsNullOrWhiteSpace(configFile))
             {
-                var configFullPath = Path.Combine(Path.GetDirectoryName(enginePath) ?? projectRoot, configFile);
+                var configFullPath = Path.Combine(aiFolder, configFile);
 
                 if (File.Exists(configFullPath))
                 {
-                    _engine.SetConfig(configFile);
+                    _engine.SetConfig(configFullPath);
                 }
                 else
                 {
@@ -71,6 +72,12 @@ public partial class BoardViewModel
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {
                 var aiMove = _engine.Begin();
+                if (ResponseIndicatesError(aiMove))
+                {
+                    NotifyProfessionalModeUnavailable($"AI trả về lỗi khi bắt đầu.\nPhản hồi: {aiMove}");
+                    return;
+                }
+
                 PlaceAiIfValid(aiMove);
             }
         }
@@ -122,4 +129,8 @@ public partial class BoardViewModel
             _ => null
         };
     }
+
+    private static bool ResponseIndicatesError(string? response)
+        => !string.IsNullOrWhiteSpace(response) &&
+           response.StartsWith("ERROR", StringComparison.OrdinalIgnoreCase);
 }

@@ -379,6 +379,12 @@ public partial class BoardViewModel
             return;
         }
 
+        if (ResponseIndicatesError(aiMove))
+        {
+            NotifyProfessionalModeUnavailable($"AI trả về lỗi: {aiMove}");
+            return;
+        }
+
         var parts = aiMove.Split(',');
         if (parts.Length == 2 &&
             int.TryParse(parts[0], out int aiX) &&

@@ -255,7 +255,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         };
         RuleOptions = new ObservableCollection<RuleOption>
         {
-            new RuleOption("Freestyle", () => new FreestyleRule(), 19, 19, "config_freestyle.toml"),
+            new RuleOption("Freestyle", () => new FreestyleRule(), 35, 35, "config_freestyle.toml", allowExpansion: true),
             new RuleOption("Standard", () => new StandardRule(), 15, 15, "config_standard.toml"),
             new RuleOption("Renju", () => new RenjuRule(), 15, 15, "config_renju_black.toml", "config_renju_white.toml")
         };

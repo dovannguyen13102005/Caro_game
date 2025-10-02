@@ -35,6 +35,16 @@
                                     <Separator Margin="0,8"/>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAIEnabled}" Value="False">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
                                         <TextBlock Text="Người đi trước:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120" ItemsSource="{Binding Players}" SelectedItem="{Binding FirstPlayer}"/>
                                     </StackPanel>
@@ -43,6 +53,16 @@
                                               IsChecked="{Binding IsAIEnabled}" Foreground="{DynamicResource DefaultForeground}"/>
 
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAIEnabled}" Value="False">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
                                         <TextBlock Text="Cấp độ:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120"
                                                   ItemsSource="{Binding AIModes}"
@@ -189,7 +209,7 @@
 
                                 <TextBlock Text="• Mục tiêu: đạt 5 quân liên tiếp theo hàng ngang, dọc hoặc chéo." Foreground="{DynamicResource DefaultForeground}"/>
                                 <TextBlock Text="• Lượt đi: X luôn đi trước, O đi sau." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
-                                <TextBlock Text="• Bàn cờ: mặc định 30×30, phù hợp chơi freestyle." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
+                                <TextBlock Text="• Bàn cờ: mặc định 35×35, phù hợp chơi freestyle." Margin="0,6,0,0" Foreground="{DynamicResource DefaultForeground}"/>
 
                                 <Separator Margin="0,8"/>
                                 <TextBlock Text="Các biến thể luật" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentForegroundBrush}" Margin="0,6,0,0"/>

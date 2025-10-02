@@ -14,7 +14,7 @@ public partial class MainViewModel
         var ruleOption = SelectedRuleOption ?? RuleOptions.First();
         int rows = ruleOption.Rows;
         int cols = ruleOption.Columns;
-        bool allowExpansion = ruleOption.AllowExpansion;
+        bool allowExpansion = !IsAIEnabled && ruleOption.AllowExpansion;
 
         bool playerStarts = FirstPlayer switch
         {

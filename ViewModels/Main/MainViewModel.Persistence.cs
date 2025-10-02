@@ -131,7 +131,7 @@ public partial class MainViewModel
         SelectedRuleOption = ruleOption;
         var ruleInstance = ruleOption.CreateRule();
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol, ruleInstance, ruleOption.Name, !state.IsAIEnabled && ruleOption.AllowExpansion)
         {
             IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
         };

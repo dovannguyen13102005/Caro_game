@@ -46,6 +46,31 @@ public partial class BoardViewModel
                 return;
             }
 
+            if (_rule != null)
+            {
+                var configFileName = _rule.GetConfigFileName(_aiSymbol == "X");
+                if (!string.IsNullOrWhiteSpace(configFileName))
+                {
+                    var configPath = Path.Combine(projectRoot, "AI", configFileName);
+                    if (File.Exists(configPath))
+                    {
+                        _engine.SetConfigFile(configPath);
+                    }
+                    else
+                    {
+                        NotifyProfessionalModeUnavailable(
+                            $"Không tìm thấy tệp cấu hình cho luật {_rule.Name}.\nĐường dẫn: {configPath}");
+                        DisposeEngine();
+                        return;
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(_rule.EngineRuleKeyword))
+                {
+                    _engine.SendInfo("rule", _rule.EngineRuleKeyword!);
+                }
+            }
+
             // ✅ Nếu bàn trống và lượt đầu tiên thuộc AI → cho AI đi luôn
             if (Cells != null && Cells.All(c => string.IsNullOrEmpty(c.Value)) && CurrentPlayer == _aiSymbol)
             {

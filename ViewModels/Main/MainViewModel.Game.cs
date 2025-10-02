@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Threading;
 using Caro_game.Models;
+using Caro_game.Rules;
 
 namespace Caro_game.ViewModels;
 
@@ -9,10 +10,12 @@ public partial class MainViewModel
 {
     private void StartGame(object? parameter)
     {
-        bool isProfessionalMode = SelectedAIMode == "Chuyên nghiệp";
-        int baseSize = isProfessionalMode ? 19 : 35;
-        int rows = baseSize;
-        int cols = baseSize;
+        var ruleTemplate = SelectedRule ?? (Rules.Count > 0 ? Rules[0] : new FreeStyleRule());
+        var ruleInstance = ruleTemplate.Clone();
+
+        int boardSize = ruleInstance.BoardSize;
+        int rows = boardSize;
+        int cols = boardSize;
 
         bool playerStarts = FirstPlayer switch
         {
@@ -25,7 +28,7 @@ public partial class MainViewModel
         string startingSymbol = "X";
         string humanSymbol = playerStarts ? startingSymbol : "O";
 
-        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol)
+        var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol, ruleInstance)
         {
             IsAIEnabled = IsAIEnabled
         };

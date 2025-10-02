@@ -110,6 +110,26 @@ namespace Caro_game
             return ReceiveLine(); // trả về "x,y"
         }
 
+        public void SendInfo(string key, string value)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return;
+            }
+
+            Send($"INFO {key} {value}");
+        }
+
+        public void SetConfigFile(string configPath)
+        {
+            if (string.IsNullOrWhiteSpace(configPath))
+            {
+                return;
+            }
+
+            SendInfo("config_file", configPath);
+        }
+
         public void End()
         {
             try { Send("END"); } catch { }

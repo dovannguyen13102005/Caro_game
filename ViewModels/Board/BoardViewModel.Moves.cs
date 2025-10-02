@@ -29,6 +29,10 @@ public partial class BoardViewModel
         int originalRow = cell.Row;
         int originalCol = cell.Col;
 
+        var previousLastMoveCell = _lastMoveCell;
+        var previousLastMovePlayer = _lastMovePlayer;
+        var previousLastHumanMoveCell = _lastHumanMoveCell;
+
         if (_lastMoveCell != null)
         {
             _lastMoveCell.IsLastMove = false;
@@ -45,6 +49,40 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
+        List<(int Row, int Col)>? winningLine = null;
+
+        if (_rule != null)
+        {
+            var boardState = BuildBoardArray();
+            int playerValue = GetPlayerValue(movingPlayer);
+
+            if (_rule.IsForbiddenMove(boardState, playerValue, cell.Row, cell.Col))
+            {
+                RestoreLastMoveState(cell, previousLastMoveCell, previousLastMovePlayer, previousLastHumanMoveCell);
+
+                if (!isAiMove && !string.IsNullOrWhiteSpace(_rule.ForbiddenMoveMessage))
+                {
+                    Application.Current.Dispatcher?.Invoke(() =>
+                        MessageBox.Show(_rule.ForbiddenMoveMessage!, "Lỗi luật", MessageBoxButton.OK, MessageBoxImage.Warning));
+                }
+                else if (isAiMove)
+                {
+                    TriggerAiTurnIfNeeded(null, null);
+                }
+
+                return;
+            }
+
+            if (_rule.TryGetWinningLine(boardState, playerValue, cell.Row, cell.Col, out var ruleWinningLine))
+            {
+                winningLine = ruleWinningLine;
+            }
+        }
+        else if (TryGetClassicWinningLine(cell.Row, cell.Col, movingPlayer, out var classicLine))
+        {
+            winningLine = classicLine;
+        }
+
         if (!(IsAIEnabled && AIMode == "Chuyên nghiệp"))
         {
             ExpandBoardIfNeeded(originalRow, originalCol);
@@ -52,9 +90,9 @@ public partial class BoardViewModel
 
         UpdateCandidatePositions(cell.Row, cell.Col);
 
-        if (CheckWin(cell.Row, cell.Col, movingPlayer))
+        if (winningLine != null)
         {
-            HighlightWinningCells(cell.Row, cell.Col, movingPlayer);
+            HighlightWinningCells(winningLine);
 
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -410,51 +448,6 @@ public partial class BoardViewModel
         }
 
         return count;
-    }
-
-    private bool CheckWin(int row, int col, string player)
-    {
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
-
-        foreach (var dir in directions)
-        {
-            int count = 1;
-            count += CountDirectionSimulate(row, col, dir[0], dir[1], player);
-            count += CountDirectionSimulate(row, col, -dir[0], -dir[1], player);
-
-            if (count >= 5)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void HighlightWinningCells(int row, int col, string player)
-    {
-        int[][] directions = { new[] { 0, 1 }, new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, -1 } };
-
-        foreach (var dir in directions)
-        {
-            var line = GetLine(row, col, dir[0], dir[1], player);
-            var opposite = GetLine(row, col, -dir[0], -dir[1], player);
-            line.AddRange(opposite);
-
-            if (_cellLookup.TryGetValue((row, col), out var center))
-            {
-                line.Add(center);
-            }
-
-            if (line.Count >= 5)
-            {
-                foreach (var cellInLine in line)
-                {
-                    cellInLine.IsWinningCell = true;
-                }
-                break;
-            }
-        }
     }
 
     private List<Cell> GetLine(int row, int col, int dRow, int dCol, string player)

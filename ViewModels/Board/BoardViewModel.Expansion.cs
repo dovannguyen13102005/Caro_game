@@ -8,6 +8,11 @@ public partial class BoardViewModel
 {
     private void ExpandBoardIfNeeded(int originalRow, int originalCol)
     {
+        if (_rule != null && !_rule.AllowBoardExpansion)
+        {
+            return;
+        }
+
         if (IsAIEnabled && AIMode == "Chuyên nghiệp")
         {
             return;

@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Caro_game.Models;
+using Caro_game.Rules;
 using Microsoft.Win32;
 
 namespace Caro_game.ViewModels;
@@ -36,6 +37,7 @@ public partial class MainViewModel
                 HumanSymbol = Board.HumanSymbol,
                 IsAIEnabled = Board.IsAIEnabled,
                 AIMode = Board.AIMode,
+                RuleName = Board.RuleName,
                 TimeLimitMinutes = SelectedTimeOption.Minutes,
                 RemainingSeconds = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTime.TotalSeconds) : null,
                 IsPaused = IsGamePaused,
@@ -126,7 +128,13 @@ public partial class MainViewModel
         bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
         var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol)
+        var ruleInstance = CreateRuleInstanceForState(state);
+        if (ruleInstance != null && (state.Rows != ruleInstance.BoardSize || state.Columns != ruleInstance.BoardSize))
+        {
+            ruleInstance = null;
+        }
+
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol, ruleInstance)
         {
             IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
         };
@@ -185,6 +193,35 @@ public partial class MainViewModel
             : IsGamePaused ? "Đang tạm dừng" : "Đang chơi";
 
         CommandManager.InvalidateRequerySuggested();
+    }
+
+    private IRule? CreateRuleInstanceForState(GameState state)
+    {
+        IRule? template = null;
+
+        if (!string.IsNullOrWhiteSpace(state.RuleName))
+        {
+            template = Rules.FirstOrDefault(r => string.Equals(r.Name, state.RuleName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (template == null)
+        {
+            template = Rules.FirstOrDefault(r => r.BoardSize == state.Rows);
+        }
+
+        if (template != null)
+        {
+            SelectedRule = template;
+            return template.Clone();
+        }
+
+        if (Rules.Count == 0)
+        {
+            Rules.Add(new FreeStyleRule());
+        }
+
+        SelectedRule = Rules[0];
+        return Rules[0].Clone();
     }
 
     private TimeOption EnsureTimeOption(int minutes)

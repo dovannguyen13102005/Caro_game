@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using Caro_game;
 using Caro_game.Models;
+using Caro_game.Rules;
 
 namespace Caro_game.ViewModels;
 
@@ -44,6 +45,7 @@ public partial class BoardViewModel : BaseViewModel
     private readonly HashSet<(int Row, int Col)> _candidatePositions;
     private readonly object _candidateLock = new();
     private readonly string _initialPlayer;
+    private readonly IRule? _rule;
     private readonly string _humanSymbol;
     private readonly string _aiSymbol;
     private static readonly TimeSpan AiThinkingDelay = TimeSpan.FromMilliseconds(600);
@@ -131,8 +133,9 @@ public partial class BoardViewModel : BaseViewModel
 
     public event EventHandler<GameEndedEventArgs>? GameEnded;
 
-    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null)
+    public BoardViewModel(int rows, int columns, string firstPlayer, string aiMode = "Dễ", string? humanSymbol = null, IRule? rule = null)
     {
+        _rule = rule;
         Rows = rows;
         Columns = columns;
         AIMode = aiMode;
@@ -161,4 +164,6 @@ public partial class BoardViewModel : BaseViewModel
             TryInitializeProfessionalEngine();
         }
     }
+
+    public string RuleName => _rule?.Name ?? "Tùy chỉnh";
 }

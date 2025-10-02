@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using Caro_game.Commands;
 using Caro_game.Models;
+using Caro_game.Rules;
 
 namespace Caro_game.ViewModels;
 
@@ -31,10 +32,12 @@ public partial class MainViewModel : INotifyPropertyChanged
     private DispatcherTimer? _gameTimer;
     private TimeSpan _configuredDuration = TimeSpan.Zero;
     private readonly Random _random = new();
+    private IRule _selectedRule;
 
     public ObservableCollection<string> Players { get; }
     public ObservableCollection<string> AIModes { get; }
     public ObservableCollection<TimeOption> TimeOptions { get; }
+    public ObservableCollection<IRule> Rules { get; }
 
     public ObservableCollection<string> Themes { get; } =
         new ObservableCollection<string> { DefaultDarkThemeLabel, "Light" };
@@ -146,6 +149,19 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public IRule SelectedRule
+    {
+        get => _selectedRule;
+        set
+        {
+            if (value != null && _selectedRule != value)
+            {
+                _selectedRule = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     public TimeSpan RemainingTime
     {
         get => _remainingTime;
@@ -236,9 +252,18 @@ public partial class MainViewModel : INotifyPropertyChanged
             new TimeOption(60, "60 phút")
         };
 
+        Rules = new ObservableCollection<IRule>
+        {
+            new FreeStyleRule(),
+            new StandardRule(),
+            new RenjuRule()
+        };
+
         FirstPlayer = Players[0];
         IsAIEnabled = true;
         SelectedAIMode = "Khó";
+
+        SelectedRule = Rules[0];
 
         SelectedTheme = DefaultDarkThemeLabel;
         IsSoundEnabled = true;

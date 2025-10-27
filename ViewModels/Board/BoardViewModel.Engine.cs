@@ -13,12 +13,10 @@ public partial class BoardViewModel
     {
         DisposeEngine();
 
-        // 🔹 Xác định thư mục gốc project (từ bin quay ngược ra)
         var projectRoot = Path.GetFullPath(
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\")
         );
 
-        // 🔹 Đường dẫn tới AI ngoài repo
         var enginePath = Path.Combine(projectRoot, "AI", "pbrain-rapfi_avx2.exe");
 
         if (string.IsNullOrWhiteSpace(enginePath) || !File.Exists(enginePath))

@@ -15,7 +15,15 @@ namespace Caro_game.Models
         public string? AIMode { get; set; }
         public int TimeLimitMinutes { get; set; }
         public int? RemainingSeconds { get; set; }
+        public int? RemainingSecondsX { get; set; }
+        public int? RemainingSecondsO { get; set; }
         public bool IsPaused { get; set; }
+        
+        // Player Info
+        public string? Player1Name { get; set; }
+        public string? Player1Avatar { get; set; }
+        public string? Player2Name { get; set; }
+        public string? Player2Avatar { get; set; }
         public DateTime SavedAt { get; set; }
         public List<CellState> Cells { get; set; } = new();
         public List<MoveState> Moves { get; set; } = new();

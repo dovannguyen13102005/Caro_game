@@ -39,7 +39,13 @@ public partial class MainViewModel
                 AIMode = Board.AIMode,
                 TimeLimitMinutes = SelectedTimeOption.Minutes,
                 RemainingSeconds = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTime.TotalSeconds) : null,
+                RemainingSecondsX = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTimeX.TotalSeconds) : null,
+                RemainingSecondsO = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTimeO.TotalSeconds) : null,
                 IsPaused = IsGamePaused,
+                Player1Name = Player1.Name,
+                Player1Avatar = Player1.AvatarPath,
+                Player2Name = Player2.Name,
+                Player2Avatar = Player2.AvatarPath,
                 SavedAt = DateTime.Now,
                 Cells = Board.Cells.Select(c => new CellState
                 {
@@ -136,7 +142,9 @@ public partial class MainViewModel
 
         var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", targetMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion, isRestoringState: true)
         {
-            IsAIEnabled = state.IsAIEnabled
+            IsAIEnabled = state.IsAIEnabled,
+            PlayerXName = Player1.Name,
+            PlayerOName = Player2.Name
         };
 
         board.LoadFromState(state);
@@ -152,13 +160,48 @@ public partial class MainViewModel
 
         if (state.TimeLimitMinutes > 0)
         {
-            RemainingTime = state.RemainingSeconds.HasValue
-                ? TimeSpan.FromSeconds(Math.Max(0, state.RemainingSeconds.Value))
-                : _configuredDuration;
+            if (state.RemainingSecondsX.HasValue && state.RemainingSecondsO.HasValue)
+            {
+                RemainingTimeX = TimeSpan.FromSeconds(Math.Max(0, state.RemainingSecondsX.Value));
+                RemainingTimeO = TimeSpan.FromSeconds(Math.Max(0, state.RemainingSecondsO.Value));
+                RemainingTime = Board?.CurrentPlayer == "X" ? RemainingTimeX : RemainingTimeO;
+            }
+            else
+            {
+                RemainingTime = state.RemainingSeconds.HasValue
+                    ? TimeSpan.FromSeconds(Math.Max(0, state.RemainingSeconds.Value))
+                    : _configuredDuration;
+                RemainingTimeX = _configuredDuration;
+                RemainingTimeO = _configuredDuration;
+            }
         }
         else
         {
             RemainingTime = TimeSpan.Zero;
+            RemainingTimeX = TimeSpan.Zero;
+            RemainingTimeO = TimeSpan.Zero;
+        }
+
+        if (!string.IsNullOrEmpty(state.Player1Name))
+        {
+            Player1.Name = state.Player1Name;
+        }
+        if (!string.IsNullOrEmpty(state.Player1Avatar))
+        {
+            Player1.AvatarPath = state.Player1Avatar;
+        }
+        if (!string.IsNullOrEmpty(state.Player2Name))
+        {
+            Player2.Name = state.Player2Name;
+        }
+        if (!string.IsNullOrEmpty(state.Player2Avatar))
+        {
+            Player2.AvatarPath = state.Player2Avatar;
+        }
+        else if (state.IsAIEnabled)
+        {
+            Player2.Name = "Máy";
+            Player2.AvatarPath = "robot";
         }
 
         bool hasWinner = state.Cells?.Any(c => c.IsWinningCell) == true;

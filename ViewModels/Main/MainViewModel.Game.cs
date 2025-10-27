@@ -46,6 +46,12 @@ public partial class MainViewModel
             }
         }
 
+        if (IsAIEnabled)
+        {
+            Player2.Name = "Máy";
+            Player2.AvatarPath = "robot"; 
+        }
+
         bool aiPlaysBlack = IsAIEnabled ? aiSymbol == "X" : true;
 
         ApplyRuleConfiguration(ruleOption, aiPlaysBlack);
@@ -54,7 +60,9 @@ public partial class MainViewModel
 
         var board = new BoardViewModel(rows, cols, startingSymbol, SelectedAIMode, humanSymbol, ruleInstance, ruleOption.Name, allowExpansion)
         {
-            IsAIEnabled = IsAIEnabled
+            IsAIEnabled = IsAIEnabled,
+            PlayerXName = Player1.Name,
+            PlayerOName = Player2.Name
         };
 
         Board = board;
@@ -64,6 +72,19 @@ public partial class MainViewModel
         _configuredDuration = SelectedTimeOption.Minutes > 0
             ? TimeSpan.FromMinutes(SelectedTimeOption.Minutes)
             : TimeSpan.Zero;
+
+        if (_configuredDuration > TimeSpan.Zero)
+        {
+            RemainingTimeX = _configuredDuration;
+            RemainingTimeO = _configuredDuration;
+            RemainingTime = _configuredDuration;
+        }
+        else
+        {
+            RemainingTimeX = TimeSpan.Zero;
+            RemainingTimeO = TimeSpan.Zero;
+            RemainingTime = TimeSpan.Zero;
+        }
 
         StartTimer();
 
@@ -170,17 +191,39 @@ public partial class MainViewModel
             return;
         }
 
-        if (RemainingTime > TimeSpan.Zero)
+        if (_configuredDuration <= TimeSpan.Zero || Board == null)
         {
-            RemainingTime -= TimeSpan.FromSeconds(1);
+            return;
         }
 
-        if (RemainingTime <= TimeSpan.Zero)
+        if (Board.CurrentPlayer == "X")
         {
-            RemainingTime = TimeSpan.Zero;
-            StopTimer();
-            HandleTimeExpired();
+            if (RemainingTimeX > TimeSpan.Zero)
+            {
+                RemainingTimeX -= TimeSpan.FromSeconds(1);
+            }
+            if (RemainingTimeX <= TimeSpan.Zero)
+            {
+                RemainingTimeX = TimeSpan.Zero;
+                StopTimer();
+                HandleTimeExpired();
+            }
         }
+        else
+        {
+            if (RemainingTimeO > TimeSpan.Zero)
+            {
+                RemainingTimeO -= TimeSpan.FromSeconds(1);
+            }
+            if (RemainingTimeO <= TimeSpan.Zero)
+            {
+                RemainingTimeO = TimeSpan.Zero;
+                StopTimer();
+                HandleTimeExpired();
+            }
+        }
+        
+        RemainingTime = Board.CurrentPlayer == "X" ? RemainingTimeX : RemainingTimeO;
     }
 
     private void HandleTimeExpired()
@@ -188,8 +231,34 @@ public partial class MainViewModel
         Board?.PauseBoard();
         IsGameActive = false;
         IsGamePaused = false;
-        StatusMessage = "Hết thời gian";
-        MessageBox.Show("Hết thời gian! Ván đấu đã kết thúc.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+        
+        if (Board == null) return;
+
+        string loser = Board.CurrentPlayer;
+        string winner = loser == "X" ? "O" : "X";
+        string loserName = loser == "X" ? Player1.Name : Player2.Name;
+        string winnerName = winner == "X" ? Player1.Name : Player2.Name;
+
+        if (Board.IsAIEnabled)
+        {
+            bool humanLost = string.Equals(loser, Board.HumanSymbol, StringComparison.OrdinalIgnoreCase);
+            
+            if (humanLost)
+            {
+                StatusMessage = $"{loserName} thua vì hết thời gian!";
+                MessageBox.Show($"{loserName} hết thời gian! Bạn đã thua.", "Kết thúc ván", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                StatusMessage = $"{winnerName} thắng!";
+                MessageBox.Show($"Máy hết thời gian! {winnerName} thắng!", "Kết thúc ván", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        else
+        {
+            StatusMessage = $"{winnerName} thắng! {loserName} hết thời gian.";
+            MessageBox.Show($"{loserName} hết thời gian!\n{winnerName} thắng!", "Kết thúc ván", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     private void OnBoardGameEnded(object? sender, GameEndedEventArgs e)

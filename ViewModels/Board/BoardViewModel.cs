@@ -134,6 +134,9 @@ public partial class BoardViewModel : BaseViewModel
     public string? LastMovePlayer => _lastMovePlayer;
     public IReadOnlyList<MoveState> MoveHistory => _moveHistory;
 
+    public string PlayerXName { get; set; } = "Người chơi X";
+    public string PlayerOName { get; set; } = "Người chơi O";
+
     private EngineClient? _engine;
     private bool _pendingResumeAfterLoad;
 

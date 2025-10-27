@@ -83,9 +83,25 @@ public partial class BoardViewModel
                 bool aiMatch = IsAIEnabled;
                 bool aiWon = aiMatch && string.Equals(movingPlayer, _aiSymbol, StringComparison.OrdinalIgnoreCase);
 
-                string message = aiMatch
-                    ? (aiWon ? "Máy thắng!" : "Bạn thắng!")
-                    : $"Người chơi {movingPlayer} thắng!";
+                string winnerName;
+                if (aiMatch)
+                {
+                    winnerName = aiWon ? PlayerOName : PlayerXName;
+                    if (_aiSymbol == "X")
+                    {
+                        winnerName = aiWon ? PlayerXName : PlayerOName;
+                    }
+                    else
+                    {
+                        winnerName = aiWon ? PlayerOName : PlayerXName;
+                    }
+                }
+                else
+                {
+                    winnerName = movingPlayer == "X" ? PlayerXName : PlayerOName;
+                }
+
+                string message = $"{winnerName} thắng!";
 
                 if (aiWon)
                 {
@@ -475,6 +491,9 @@ public partial class BoardViewModel
         Application.Current.Dispatcher.Invoke(() =>
         {
             string winner = offendingPlayer == "X" ? "O" : "X";
+            string winnerName = winner == "X" ? PlayerXName : PlayerOName;
+            string offenderName = offendingPlayer == "X" ? PlayerXName : PlayerOName;
+            
             AudioService.Instance.PlayErrorSound();
 
             bool aiMatch = IsAIEnabled;
@@ -483,11 +502,11 @@ public partial class BoardViewModel
 
             string message = aiMatch
                 ? (humanCommittedFoul
-                    ? "Bạn thua vì đi sai luật!"
+                    ? $"{offenderName} thua vì đi sai luật!"
                     : aiCommittedFoul
-                        ? "Máy đi sai luật, bạn thắng!"
-                        : $"Nước đi của {offendingPlayer} bị cấm theo luật {RuleName}. {winner} thắng!")
-                : $"Nước đi của {offendingPlayer} bị cấm theo luật {RuleName}. {winner} thắng!";
+                        ? $"{winnerName} thắng! {offenderName} đi sai luật."
+                        : $"Nước đi của {offenderName} bị cấm theo luật {RuleName}. {winnerName} thắng!")
+                : $"Nước đi của {offenderName} bị cấm theo luật {RuleName}. {winnerName} thắng!";
 
             if (humanCommittedFoul)
             {

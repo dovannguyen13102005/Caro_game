@@ -32,11 +32,15 @@ public partial class MainViewModel : INotifyPropertyChanged
     private bool _isGameActive;
     private bool _isGamePaused;
     private TimeSpan _remainingTime;
+    private TimeSpan _remainingTimeX;
+    private TimeSpan _remainingTimeO;
     private string _statusMessage;
     private DispatcherTimer? _gameTimer;
     private TimeSpan _configuredDuration = TimeSpan.Zero;
     private readonly Random _random = new();
     private RuleOption _selectedRuleOption = null!;
+    private PlayerInfo _player1;
+    private PlayerInfo _player2;
 
     public ObservableCollection<string> Players { get; }
     public ObservableCollection<string> AIModes { get; }
@@ -45,6 +49,32 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<string> Themes { get; } =
         new ObservableCollection<string> { DefaultDarkThemeLabel, "Light" };
+
+    public PlayerInfo Player1
+    {
+        get => _player1;
+        set
+        {
+            if (_player1 != value)
+            {
+                _player1 = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public PlayerInfo Player2
+    {
+        get => _player2;
+        set
+        {
+            if (_player2 != value)
+            {
+                _player2 = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public string FirstPlayer
     {
@@ -195,6 +225,39 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public TimeSpan RemainingTimeX
+    {
+        get => _remainingTimeX;
+        private set
+        {
+            if (_remainingTimeX != value)
+            {
+                _remainingTimeX = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RemainingTimeDisplay));
+                OnPropertyChanged(nameof(IsTimeXCritical));
+            }
+        }
+    }
+
+    public TimeSpan RemainingTimeO
+    {
+        get => _remainingTimeO;
+        private set
+        {
+            if (_remainingTimeO != value)
+            {
+                _remainingTimeO = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RemainingTimeDisplay));
+                OnPropertyChanged(nameof(IsTimeOCritical));
+            }
+        }
+    }
+
+    public bool IsTimeXCritical => _configuredDuration > TimeSpan.Zero && RemainingTimeX <= TimeSpan.FromSeconds(30) && RemainingTimeX > TimeSpan.Zero;
+    public bool IsTimeOCritical => _configuredDuration > TimeSpan.Zero && RemainingTimeO <= TimeSpan.FromSeconds(30) && RemainingTimeO > TimeSpan.Zero;
+
     public string RemainingTimeDisplay =>
         SelectedTimeOption.Minutes > 0
             ? RemainingTime.ToString(@"mm\:ss")
@@ -262,13 +325,18 @@ public partial class MainViewModel : INotifyPropertyChanged
         TimeOptions = new ObservableCollection<TimeOption>
         {
             new TimeOption(0, "Không giới hạn"),
+            new TimeOption(1, "1 phút"),
+            new TimeOption(3, "3 phút"),
             new TimeOption(5, "5 phút"),
             new TimeOption(10, "10 phút"),
             new TimeOption(15, "15 phút"),
             new TimeOption(20, "20 phút"),
+            new TimeOption(25, "25 phút"),
             new TimeOption(30, "30 phút"),
             new TimeOption(45, "45 phút"),
-            new TimeOption(60, "60 phút")
+            new TimeOption(60, "60 phút"),
+            new TimeOption(90, "90 phút"),
+            new TimeOption(120, "120 phút")
         };
         RuleOptions = new ObservableCollection<RuleOption>
         {
@@ -289,11 +357,16 @@ public partial class MainViewModel : INotifyPropertyChanged
         RemainingTime = TimeSpan.FromMinutes(_selectedTimeOption.Minutes);
         StatusMessage = "Chưa bắt đầu";
 
+        _player1 = new PlayerInfo("Người chơi 1", "X", "");
+        _player2 = new PlayerInfo("Người chơi 2", "O", "");
+
         StartGameCommand = new RelayCommand(StartGame);
         TogglePauseCommand = new RelayCommand(_ => TogglePause(), _ => Board != null && IsGameActive);
         SaveGameCommand = new RelayCommand(_ => SaveCurrentGame(), _ => Board != null);
         LoadGameCommand = new RelayCommand(_ => LoadSavedGame());
         SaveSettingsCommand = new RelayCommand(_ => SaveSettings());
+
+        LoadSettings();
     }
 
     private RuleOption ResolveRuleOption(string? ruleName)

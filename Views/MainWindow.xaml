@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Caro_game.ViewModels"
+        xmlns:converter="clr-namespace:Caro_game.Converter"
         mc:Ignorable="d"
         Title="Caro Game"
         Width="1000" Height="700"
@@ -14,6 +15,17 @@
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <converter:PlayerToBooleanConverter x:Key="PlayerToBool"/>
+        <converter:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <converter:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <converter:StringNotEmptyToBoolConverter x:Key="StringNotEmptyToBool"/>
+        <converter:RobotAvatarConverter x:Key="RobotAvatarConverter"/>
+        <converter:IsRobotAvatarConverter x:Key="IsRobotAvatar"/>
+        <converter:IsNotRobotAvatarConverter x:Key="IsNotRobotAvatar"/>
+    </Window.Resources>
 
     <Grid Margin="20">
         <Border Background="{DynamicResource SurfaceBackgroundBrush}" CornerRadius="12" Padding="16">
@@ -34,7 +46,8 @@
                                     <TextBlock Text="Tùy chọn nhanh" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
                                     <Separator Margin="0,8"/>
 
-                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0"
+                                                IsEnabled="{Binding IsAIEnabled}">
                                         <TextBlock Text="Người đi trước:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120" ItemsSource="{Binding Players}" SelectedItem="{Binding FirstPlayer}"/>
                                     </StackPanel>
@@ -42,7 +55,8 @@
                                     <CheckBox Content="Chơi với máy" Margin="0,10,0,0"
                                               IsChecked="{Binding IsAIEnabled}" Foreground="{DynamicResource DefaultForeground}"/>
 
-                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0"
+                                                IsEnabled="{Binding IsAIEnabled}">
                                         <TextBlock Text="Cấp độ:" Width="120" Foreground="{DynamicResource DefaultForeground}"/>
                                         <ComboBox Width="120"
                                                   ItemsSource="{Binding AIModes}"
@@ -106,73 +120,214 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
+                                    <!-- Player Avatars and Timer -->
                                     <Grid Margin="0,0,0,12">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding Board.CurrentPlayer, StringFormat=Lượt hiện tại: {0}}"
-                                                   FontSize="16" FontWeight="Bold"
-                                                   Foreground="{DynamicResource AccentForegroundBrush}"/>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="Thời gian còn lại: "
-                                                       Foreground="{DynamicResource DefaultForeground}"/>
-                                            <TextBlock Text="{Binding RemainingTimeDisplay}"
-                                                       FontWeight="Bold"
-                                                       Foreground="{DynamicResource AccentForegroundBrush}"/>
+
+                                        <!-- Player 1 (X) -->
+                                        <Border Grid.Column="0" Background="{DynamicResource CardBackgroundBrush}" 
+                                                CornerRadius="8" Padding="10">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Board.CurrentPlayer}" Value="X">
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource Primary}"/>
+                                                            <Setter Property="BorderThickness" Value="3"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <!-- Avatar and Symbol Stack -->
+                                                <StackPanel Margin="0,0,10,0">
+                                                    <!-- Avatar Image -->
+                                                    <Grid Width="40" Height="40">
+                                                        <!-- Default background circle -->
+                                                        <Ellipse Fill="LightBlue"/>
+                                                        <!-- Avatar image overlay (for file paths) -->
+                                                        <Ellipse Visibility="{Binding Player1.AvatarPath, Converter={StaticResource IsNotRobotAvatar}}">
+                                                            <Ellipse.Fill>
+                                                                <ImageBrush ImageSource="{Binding Player1.AvatarPath}" Stretch="UniformToFill"/>
+                                                            </Ellipse.Fill>
+                                                        </Ellipse>
+                                                        <!-- Robot emoji (for "robot" marker) -->
+                                                        <TextBlock Text="{Binding Player1.AvatarPath, Converter={StaticResource RobotAvatarConverter}}" 
+                                                                   FontSize="28" 
+                                                                   HorizontalAlignment="Center" 
+                                                                   VerticalAlignment="Center"
+                                                                   Visibility="{Binding Player1.AvatarPath, Converter={StaticResource IsRobotAvatar}}"/>
+                                                    </Grid>
+                                                    <!-- Symbol below avatar -->
+                                                    <TextBlock Text="X" FontSize="16" FontWeight="Bold" 
+                                                               HorizontalAlignment="Center" Margin="0,2,0,0"
+                                                               Foreground="{DynamicResource DefaultForeground}"/>
+                                                </StackPanel>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Player1.Name}" FontWeight="Bold" FontSize="14" 
+                                                               Foreground="{DynamicResource DefaultForeground}"/>
+                                                    <TextBlock Text="{Binding RemainingTimeX, StringFormat={}{0:mm\\:ss}}" 
+                                                               FontSize="18" FontWeight="Bold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsTimeXCritical}" Value="True">
+                                                                        <Setter Property="Foreground" Value="Red"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Current Turn Info -->
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Board.CurrentPlayer, StringFormat=Lượt: {0}}"
+                                                       FontSize="16" FontWeight="Bold"
+                                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                                       HorizontalAlignment="Center"/>
                                         </StackPanel>
+
+                                        <!-- Player 2 (O) -->
+                                        <Border Grid.Column="2" Background="{DynamicResource CardBackgroundBrush}" 
+                                                CornerRadius="8" Padding="10">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Board.CurrentPlayer}" Value="O">
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource Primary}"/>
+                                                            <Setter Property="BorderThickness" Value="3"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding Player2.Name}" FontWeight="Bold" FontSize="14" 
+                                                               Foreground="{DynamicResource DefaultForeground}" TextAlignment="Right"/>
+                                                    <TextBlock Text="{Binding RemainingTimeO, StringFormat={}{0:mm\\:ss}}" 
+                                                               FontSize="18" FontWeight="Bold" 
+                                                               TextAlignment="Right">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsTimeOCritical}" Value="True">
+                                                                        <Setter Property="Foreground" Value="Red"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <!-- Avatar and Symbol Stack -->
+                                                <StackPanel Margin="10,0,0,0">
+                                                    <!-- Avatar Image -->
+                                                    <Grid Width="40" Height="40">
+                                                        <!-- Default background circle -->
+                                                        <Ellipse Fill="LightCoral"/>
+                                                        <!-- Avatar image overlay (for file paths) -->
+                                                        <Ellipse Visibility="{Binding Player2.AvatarPath, Converter={StaticResource IsNotRobotAvatar}}">
+                                                            <Ellipse.Fill>
+                                                                <ImageBrush ImageSource="{Binding Player2.AvatarPath}" Stretch="UniformToFill"/>
+                                                            </Ellipse.Fill>
+                                                        </Ellipse>
+                                                        <!-- Robot emoji (for "robot" marker) -->
+                                                        <TextBlock Text="{Binding Player2.AvatarPath, Converter={StaticResource RobotAvatarConverter}}" 
+                                                                   FontSize="28" 
+                                                                   HorizontalAlignment="Center" 
+                                                                   VerticalAlignment="Center"
+                                                                   Visibility="{Binding Player2.AvatarPath, Converter={StaticResource IsRobotAvatar}}"/>
+                                                    </Grid>
+                                                    <!-- Symbol below avatar -->
+                                                    <TextBlock Text="O" FontSize="16" FontWeight="Bold" 
+                                                               HorizontalAlignment="Center" Margin="0,2,0,0"
+                                                               Foreground="{DynamicResource DefaultForeground}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
                                     </Grid>
 
                                     <TextBlock Grid.Row="1" Text="{Binding StatusMessage}"
                                                Margin="0,0,0,12"
                                                Foreground="{DynamicResource DefaultForeground}"/>
 
-                                    <ScrollViewer Grid.Row="2"
-                                                  HorizontalScrollBarVisibility="Auto"
-                                                  VerticalScrollBarVisibility="Auto">
-                                        <Viewbox Stretch="Uniform"
-                                                 StretchDirection="UpOnly"
-                                                 HorizontalAlignment="Center"
-                                                 VerticalAlignment="Center">
-                                            <ItemsControl ItemsSource="{Binding Board.Cells}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <UniformGrid Rows="{Binding Board.Rows}" Columns="{Binding Board.Columns}"/>
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
+                                    <!-- Board with pause overlay -->
+                                    <Grid Grid.Row="2">
+                                        <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                                      VerticalScrollBarVisibility="Auto">
+                                            <Viewbox Stretch="Uniform"
+                                                     StretchDirection="UpOnly"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center">
+                                                <ItemsControl ItemsSource="{Binding Board.Cells}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <UniformGrid Rows="{Binding Board.Rows}" Columns="{Binding Board.Columns}"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
 
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Button Content="{Binding Value}"
-                                                                Command="{Binding ClickCommand}"
-                                                                Width="30" Height="30"
-                                                                Margin="1"
-                                                                FontWeight="Bold"
-                                                                FontSize="16"
-                                                                Foreground="{DynamicResource DefaultForeground}">
-                                                            <Button.Style>
-                                                                <Style TargetType="Button">
-                                                                    <Setter Property="Background" Value="{DynamicResource CellBackgroundBrush}"/>
-                                                                    <Setter Property="BorderBrush" Value="{DynamicResource CellBorderBrush}"/>
-                                                                    <Setter Property="BorderThickness" Value="1"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsLastMove}" Value="True">
-                                                                            <Setter Property="Background" Value="{DynamicResource LastMoveBrush}"/>
-                                                                            <Setter Property="BorderBrush" Value="{DynamicResource Primary}"/>
-                                                                            <Setter Property="BorderThickness" Value="2"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsWinningCell}" Value="True">
-                                                                            <Setter Property="Background" Value="{DynamicResource WinningCellBrush}"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Button.Style>
-                                                        </Button>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </Viewbox>
-                                    </ScrollViewer>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Button Content="{Binding Value}"
+                                                                    Command="{Binding ClickCommand}"
+                                                                    Width="30" Height="30"
+                                                                    Margin="1"
+                                                                    FontWeight="Bold"
+                                                                    FontSize="16"
+                                                                    Foreground="{DynamicResource DefaultForeground}">
+                                                                <Button.Style>
+                                                                    <Style TargetType="Button">
+                                                                        <Setter Property="Background" Value="{DynamicResource CellBackgroundBrush}"/>
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource CellBorderBrush}"/>
+                                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsLastMove}" Value="True">
+                                                                                <Setter Property="Background" Value="{DynamicResource LastMoveBrush}"/>
+                                                                                <Setter Property="BorderBrush" Value="{DynamicResource Primary}"/>
+                                                                                <Setter Property="BorderThickness" Value="2"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsWinningCell}" Value="True">
+                                                                                <Setter Property="Background" Value="{DynamicResource WinningCellBrush}"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Button.Style>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Viewbox>
+                                        </ScrollViewer>
+
+                                        <!-- Pause Overlay -->
+                                        <Border Background="#FA000000" 
+                                                Visibility="{Binding IsGamePaused, Converter={StaticResource BoolToVis}}"
+                                                CornerRadius="8">
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="⏸ ĐANG TẠM DỪNG" 
+                                                           FontSize="32" FontWeight="Bold" 
+                                                           Foreground="White" 
+                                                           HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Bàn cờ đã bị ẩn" 
+                                                           FontSize="16" 
+                                                           Foreground="LightGray" 
+                                                           Margin="0,10,0,20"
+                                                           HorizontalAlignment="Center"/>
+                                                <Button Content="Tiếp tục" 
+                                                        Command="{Binding TogglePauseCommand}"
+                                                        Width="150" Height="40"
+                                                        FontSize="16"
+                                                        Background="{StaticResource Primary}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
                                 </Grid>
                             </Border>
                         </Grid>
@@ -224,22 +379,62 @@
                 <!-- Cài đặt -->
                 <TabItem Header="⚙️  Cài đặt">
                     <Border Background="{DynamicResource SectionBackgroundBrush}" Margin="-4" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="Tùy chỉnh giao diện" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
-                            <Separator Margin="0,8"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <TextBlock Text="Theme:" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
-                                <ComboBox Width="160" ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}"/>
+                        <ScrollViewer>
+                            <StackPanel>
+                                <TextBlock Text="Tùy chỉnh giao diện" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
+                                <Separator Margin="0,8"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <TextBlock Text="Theme:" Width="160" Foreground="{DynamicResource DefaultForeground}"/>
+                                    <ComboBox Width="160" ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}"/>
+                                </StackPanel>
+
+                                <CheckBox Content="Âm thanh" Margin="0,6,0,0"
+                                          IsChecked="{Binding IsSoundEnabled}"
+                                          Foreground="{DynamicResource DefaultForeground}"/>
+
+                                <CheckBox Content="Nhạc nền" Margin="0,6,0,0"
+                                          IsChecked="{Binding IsMusicEnabled}"
+                                          Foreground="{DynamicResource DefaultForeground}"/>
+
+                                <Button Content="Lưu giao diện" Margin="0,16,0,0" Width="160"
+                                        Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
+                                        Command="{Binding SaveSettingsCommand}"/>
+
+                                <Separator Margin="0,24"/>
+
+                                <!-- Player 1 Settings -->
+                                <TextBlock Text="Người chơi 1 (X)" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
+                                <Separator Margin="0,8"/>
+                                
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <TextBlock Text="Tên:" Width="120" Foreground="{DynamicResource DefaultForeground}" VerticalAlignment="Center"/>
+                                    <TextBox Width="200" Text="{Binding Player1.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <TextBlock Text="Avatar:" Width="120" Foreground="{DynamicResource DefaultForeground}" VerticalAlignment="Center"/>
+                                    <TextBox Width="160" Text="{Binding Player1.AvatarPath, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True"/>
+                                    <Button Content="Chọn..." Width="60" Margin="10,0,0,0" Click="SelectPlayer1Avatar_Click"/>
+                                </StackPanel>
+
+                                <Separator Margin="0,24"/>
+
+                                <!-- Player 2 Settings -->
+                                <TextBlock Text="Người chơi 2 (O)" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource DefaultForeground}"/>
+                                <Separator Margin="0,8"/>
+                                
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <TextBlock Text="Tên:" Width="120" Foreground="{DynamicResource DefaultForeground}" VerticalAlignment="Center"/>
+                                    <TextBox Width="200" Text="{Binding Player2.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <TextBlock Text="Avatar:" Width="120" Foreground="{DynamicResource DefaultForeground}" VerticalAlignment="Center"/>
+                                    <TextBox Width="160" Text="{Binding Player2.AvatarPath, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True"/>
+                                    <Button Content="Chọn..." Width="60" Margin="10,0,0,0" Click="SelectPlayer2Avatar_Click"/>
+                                </StackPanel>
                             </StackPanel>
-
-                            <CheckBox Content="Âm thanh" Margin="0,6,0,0"
-                                      IsChecked="{Binding IsSoundEnabled}"
-                                      Foreground="{DynamicResource DefaultForeground}"/>
-
-                            <Button Content="Lưu giao diện" Margin="0,16,0,0" Width="160"
-                                    Background="{StaticResource Primary}" Foreground="{DynamicResource DefaultForeground}"
-                                    Command="{Binding SaveSettingsCommand}"/>
-                        </StackPanel>
+                        </ScrollViewer>
                     </Border>
                 </TabItem>
 

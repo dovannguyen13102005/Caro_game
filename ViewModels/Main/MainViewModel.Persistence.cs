@@ -39,7 +39,13 @@ public partial class MainViewModel
                 AIMode = Board.AIMode,
                 TimeLimitMinutes = SelectedTimeOption.Minutes,
                 RemainingSeconds = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTime.TotalSeconds) : null,
+                RemainingSecondsX = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTimeX.TotalSeconds) : null,
+                RemainingSecondsO = SelectedTimeOption.Minutes > 0 ? (int?)Math.Ceiling(RemainingTimeO.TotalSeconds) : null,
                 IsPaused = IsGamePaused,
+                Player1Name = Player1.Name,
+                Player1Avatar = Player1.AvatarPath,
+                Player2Name = Player2.Name,
+                Player2Avatar = Player2.AvatarPath,
                 SavedAt = DateTime.Now,
                 Cells = Board.Cells.Select(c => new CellState
                 {
@@ -47,6 +53,12 @@ public partial class MainViewModel
                     Col = c.Col,
                     Value = c.Value,
                     IsWinningCell = c.IsWinningCell
+                }).ToList(),
+                Moves = Board.MoveHistory.Select(m => new MoveState
+                {
+                    Row = m.Row,
+                    Col = m.Col,
+                    Player = m.Player
                 }).ToList()
             };
 
@@ -124,29 +136,20 @@ public partial class MainViewModel
         var targetMode = string.IsNullOrWhiteSpace(state.AIMode) ? "Dễ" : state.AIMode!;
         SelectedAIMode = targetMode;
 
-        bool professionalModeRestored = state.IsAIEnabled && targetMode == "Chuyên nghiệp";
-        var boardAIMode = professionalModeRestored ? "Khó" : targetMode;
-
         var ruleOption = ResolveRuleOption(state.Rule);
         SelectedRuleOption = ruleOption;
         var ruleInstance = ruleOption.CreateRule();
 
-        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", boardAIMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion)
+        var board = new BoardViewModel(state.Rows, state.Columns, state.FirstPlayer ?? "X", targetMode, humanSymbol, ruleInstance, ruleOption.Name, ruleOption.AllowExpansion, isRestoringState: true)
         {
-            IsAIEnabled = professionalModeRestored ? false : state.IsAIEnabled
+            IsAIEnabled = state.IsAIEnabled,
+            PlayerXName = Player1.Name,
+            PlayerOName = Player2.Name
         };
 
         board.LoadFromState(state);
 
         Board = board;
-
-        if (professionalModeRestored)
-        {
-            SelectedAIMode = "Khó";
-            IsAIEnabled = false;
-            MessageBox.Show("Không thể tiếp tục cấp độ AI Chuyên nghiệp cho ván đã lưu. Cấp độ đã được chuyển về Khó.",
-                "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
 
         var option = EnsureTimeOption(state.TimeLimitMinutes);
         SelectedTimeOption = option;
@@ -157,13 +160,48 @@ public partial class MainViewModel
 
         if (state.TimeLimitMinutes > 0)
         {
-            RemainingTime = state.RemainingSeconds.HasValue
-                ? TimeSpan.FromSeconds(Math.Max(0, state.RemainingSeconds.Value))
-                : _configuredDuration;
+            if (state.RemainingSecondsX.HasValue && state.RemainingSecondsO.HasValue)
+            {
+                RemainingTimeX = TimeSpan.FromSeconds(Math.Max(0, state.RemainingSecondsX.Value));
+                RemainingTimeO = TimeSpan.FromSeconds(Math.Max(0, state.RemainingSecondsO.Value));
+                RemainingTime = Board?.CurrentPlayer == "X" ? RemainingTimeX : RemainingTimeO;
+            }
+            else
+            {
+                RemainingTime = state.RemainingSeconds.HasValue
+                    ? TimeSpan.FromSeconds(Math.Max(0, state.RemainingSeconds.Value))
+                    : _configuredDuration;
+                RemainingTimeX = _configuredDuration;
+                RemainingTimeO = _configuredDuration;
+            }
         }
         else
         {
             RemainingTime = TimeSpan.Zero;
+            RemainingTimeX = TimeSpan.Zero;
+            RemainingTimeO = TimeSpan.Zero;
+        }
+
+        if (!string.IsNullOrEmpty(state.Player1Name))
+        {
+            Player1.Name = state.Player1Name;
+        }
+        if (!string.IsNullOrEmpty(state.Player1Avatar))
+        {
+            Player1.AvatarPath = state.Player1Avatar;
+        }
+        if (!string.IsNullOrEmpty(state.Player2Name))
+        {
+            Player2.Name = state.Player2Name;
+        }
+        if (!string.IsNullOrEmpty(state.Player2Avatar))
+        {
+            Player2.AvatarPath = state.Player2Avatar;
+        }
+        else if (state.IsAIEnabled)
+        {
+            Player2.Name = "Máy";
+            Player2.AvatarPath = "robot";
         }
 
         bool hasWinner = state.Cells?.Any(c => c.IsWinningCell) == true;
@@ -173,6 +211,7 @@ public partial class MainViewModel
         if (Board != null)
         {
             Board.IsPaused = IsGamePaused || hasWinner;
+            Board.ResumePendingAiTurn();
         }
 
         if (_configuredDuration > TimeSpan.Zero && !IsGamePaused && !hasWinner)

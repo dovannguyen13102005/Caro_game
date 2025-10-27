@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Caro_game.Models;
 using Caro_game.Rules;
+using Caro_game.Services;
 using Caro_game.Views;
 
 namespace Caro_game.ViewModels;
@@ -16,13 +17,15 @@ public partial class BoardViewModel
 
     private void ExecuteMove(Cell cell, bool isAiMove)
     {
-        if (IsPaused || !string.IsNullOrEmpty(cell.Value))
+        if (!isAiMove && (IsPaused || !string.IsNullOrEmpty(cell.Value)))
         {
+            //AudioService.Instance.PlayErrorSound();
             return;
         }
 
         if (!isAiMove && IsAIEnabled && CurrentPlayer != _humanSymbol)
         {
+            //AudioService.Instance.PlayErrorSound();
             return;
         }
 
@@ -46,6 +49,15 @@ public partial class BoardViewModel
 
         cell.Value = movingPlayer;
 
+        _moveHistory.Add(new MoveState
+        {
+            Row = cell.Row,
+            Col = cell.Col,
+            Player = movingPlayer
+        });
+
+        AudioService.Instance.PlayMoveSound();
+
         if (_allowBoardExpansion && !(IsAIEnabled && AIMode == "Chuyên nghiệp"))
         {
             ExpandBoardIfNeeded(originalRow, originalCol);
@@ -68,7 +80,39 @@ public partial class BoardViewModel
 
             Application.Current.Dispatcher.Invoke(() =>
             {
-                var dialog = new WinDialog($"Người chơi {movingPlayer} thắng!")
+                bool aiMatch = IsAIEnabled;
+                bool aiWon = aiMatch && string.Equals(movingPlayer, _aiSymbol, StringComparison.OrdinalIgnoreCase);
+
+                string winnerName;
+                if (aiMatch)
+                {
+                    winnerName = aiWon ? PlayerOName : PlayerXName;
+                    if (_aiSymbol == "X")
+                    {
+                        winnerName = aiWon ? PlayerXName : PlayerOName;
+                    }
+                    else
+                    {
+                        winnerName = aiWon ? PlayerOName : PlayerXName;
+                    }
+                }
+                else
+                {
+                    winnerName = movingPlayer == "X" ? PlayerXName : PlayerOName;
+                }
+
+                string message = $"{winnerName} thắng!";
+
+                if (aiWon)
+                {
+                    AudioService.Instance.PlayLoseSound();
+                }
+                else
+                {
+                    AudioService.Instance.PlayWinSound();
+                }
+
+                var dialog = new WinDialog(message)
                 {
                     Owner = Application.Current.MainWindow
                 };
@@ -95,6 +139,7 @@ public partial class BoardViewModel
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
+                AudioService.Instance.PlayLoseSound();
                 MessageBox.Show("Hòa cờ! Bàn đã đầy mà không có người thắng.",
                     "Kết thúc ván", MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -178,6 +223,7 @@ public partial class BoardViewModel
         _lastMoveCell = null;
         _lastHumanMoveCell = null;
         _lastMovePlayer = null;
+        _moveHistory.Clear();
 
         CurrentPlayer = _initialPlayer;
         IsPaused = false;
@@ -306,7 +352,8 @@ public partial class BoardViewModel
         if (parts.Length == 2 &&
             int.TryParse(parts[0], out int aiX) &&
             int.TryParse(parts[1], out int aiY) &&
-            _cellLookup.TryGetValue((aiY, aiX), out var aiCell))
+            _cellLookup.TryGetValue((aiY, aiX), out var aiCell) &&
+            string.IsNullOrEmpty(aiCell.Value))
         {
             Application.Current.Dispatcher.Invoke(() => ExecuteMove(aiCell, true));
         }
@@ -341,7 +388,7 @@ public partial class BoardViewModel
     {
         lock (_candidateLock)
         {
-            _candidatePositions.Remove((row, col));
+        _candidatePositions.Remove((row, col));
 
             foreach (var neighbor in GetNeighbors(row, col, 2))
             {
@@ -444,7 +491,33 @@ public partial class BoardViewModel
         Application.Current.Dispatcher.Invoke(() =>
         {
             string winner = offendingPlayer == "X" ? "O" : "X";
-            var dialog = new WinDialog($"Nước đi của {offendingPlayer} bị cấm theo luật {RuleName}. {winner} thắng!")
+            string winnerName = winner == "X" ? PlayerXName : PlayerOName;
+            string offenderName = offendingPlayer == "X" ? PlayerXName : PlayerOName;
+            
+            AudioService.Instance.PlayErrorSound();
+
+            bool aiMatch = IsAIEnabled;
+            bool humanCommittedFoul = aiMatch && string.Equals(offendingPlayer, _humanSymbol, StringComparison.OrdinalIgnoreCase);
+            bool aiCommittedFoul = aiMatch && string.Equals(offendingPlayer, _aiSymbol, StringComparison.OrdinalIgnoreCase);
+
+            string message = aiMatch
+                ? (humanCommittedFoul
+                    ? $"{offenderName} thua vì đi sai luật!"
+                    : aiCommittedFoul
+                        ? $"{winnerName} thắng! {offenderName} đi sai luật."
+                        : $"Nước đi của {offenderName} bị cấm theo luật {RuleName}. {winnerName} thắng!")
+                : $"Nước đi của {offenderName} bị cấm theo luật {RuleName}. {winnerName} thắng!";
+
+            if (humanCommittedFoul)
+            {
+                AudioService.Instance.PlayLoseSound();
+            }
+            else
+            {
+                AudioService.Instance.PlayWinSound();
+            }
+
+            var dialog = new WinDialog(message)
             {
                 Owner = Application.Current.MainWindow
             };
@@ -486,6 +559,9 @@ public partial class BoardViewModel
 
     private static int GetPlayerValue(string player)
         => player.Equals("X", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+
+    private static string NormalizePlayerSymbol(string? player)
+        => string.Equals(player, "O", StringComparison.OrdinalIgnoreCase) ? "O" : "X";
 
     private List<(int Row, int Col)>? GetWinningLine(int[,] boardState, int row, int col, int playerValue)
     {

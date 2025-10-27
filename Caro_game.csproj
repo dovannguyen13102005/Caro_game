@@ -14,7 +14,16 @@
     </Compile>
   </ItemGroup>
 
-    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+  <ItemGroup>
+    <Content Include="Sounds\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\robot.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="robocopy &quot;$(ProjectDir)..\AI&quot; &quot;$(TargetDir)AI&quot; /E /NFL /NDL /NJH /NJS /nc /ns /np || exit 0" />
   </Target>
 
